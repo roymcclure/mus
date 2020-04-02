@@ -1,0 +1,75 @@
+- si en mi thread de conexion se lanza la excepción porque hubo una desconexión, entonces tengo que hacer un invokelater de mostrar ventana de conexión, porque se perdió. Como es modal, la ventana principal se bloquearía.
+So far, so good.
+- De igual manera, la actualización del GUI (from GameDataPackets) se hace a través del invokelater.
+
+- El flujo de datos es el siguiente:
+	* Se recibe el estado del juego desde el servidor en el hilo de conexión.
+	* El hilo desempaquetan los datos y se actualiza el estado del cliente.
+	* Esto se hace llamando a un método que mediante invokeLater lee el estado y actualiza.
+
+
+Siempre se empieza por el jugador norte, y en cada juego se va rotando.
+
+- Cuando el jugador se conecta, se le transmite la ronda actual en la que estamos. De esa manera se sabe quién empieza hablando.
+
+- Los datos que el servidor le manda al cliente son los siguiente:
+
+[estado_partida, ronda_id, tipo_ronda_id, piedras_jugador_norte, piedras_jugador_este, piedras_jugador_sur, piedras_jugador_oeste, juegos_pareja_norte_sur, juegos_pareja_este_oeste, vacas_pareja_norte_sur, vacas_pareja_este_oeste,
+carta_0_jugador_0, carta_1_jugador_0, carta_2_jugador_0, carta_3_jugador_0, carta_0_jugador_1, carta_1_jugador_1, carta_2_jugador_1, carta_3_jugador_1, carta_0_jugador_2, carta_1_jugador_2, carta_2_jugador_2, carta_3_jugador_2, 
+carta_0_jugador_3, carta_1_jugador_3, carta_2_jugador_3, carta_3_jugador_3, id_jugador_que_le_toca_hablar, piedras_envidadas_en_ronda_actual]
+
+[estado_partida]
+
+0 = esperando que todos los sitios se llenen
+1 = jugando. aqui los jugadores hacen sus lances.
+2 = fin de la ronda. aqui es cuando se muestran todas las cartas, se suma el resultado de los lances, etc.
+
+[ronda_id]
+
+identifica el número de la ronda. Se empieza en 0 y se llega hasta que una de las partes alcance el número de vacas necesarias.
+
+[tipo_ronda_id]
+
+RONDA DE MUS: 0, RONDA GRANDE: 1, RONDA CHICA: 2, RONDA PARES: 3, RONDA JUEGO: 4
+
+jugador ID envida (1) CANTIDAD 
+si ya habia un envite, significa ENVIDA MAS
+jugador ID pasa (0)
+
+ej: [1, 0, 0, X] en la ronda de la GRANDE (1) jugador NORTE (0) pasa
+ej: [1, 1, 1, 4] en la ronda de la grande (1) el jugador ESTE (1) envida (1) cuatro piedras (4)
+ej: [1, 2, 2, X] en la ronda de la grande (1) el jugador SUR (2) echa órdago
+
+
+
+
+DATOS QUE SE TRANSFIEREN CUANDO YA SE ESTA JUGANDO
+
+RONDA MUS: ID 0
+
+id_jugador_empieza: 0 inicialmente, con cada nuevo juego se va incrementando en 1 y se hace el % 4
+
+private int ronda_actual;
+
+private int 	RONDA_MUS = 0,
+		RONDA_GRANDE = 1,
+		RONDA_CHICA = 2,
+		RONDA_PARES = 3,
+		RONDA_JUEGO = 4;
+
+
+
+Los datos que el cliente le envía al servidor son los siguientes:
+
+[accion_que_quiero_ejecutar, cantidad]
+
+[accion_que_quiero_ejecutar]
+
+0 : paso, si estamos en estado_partida 1 y ronda 0 significa que me doy mus, si estamos en estado 1 y cualquier otra ronda significa que no quiero ver el envite, si lo hay.
+1 : si ya hay un envite (piedras_envidadas_en_ronda_actual != 0), significa que envido más. si no lo hay, envido el número de piedras definido por cantidad.
+2 : acepto el envite
+3 : haya envite o no, significa órdago. si es aceptado, se pasa directamente a estado 2, se pone un envite = numero de piedras que falten para hacer juego y solo se evalúa esa ronda.
+10: sentarme
+
+[cantidad]
+un número entre 0 y 3 si acción era 10, representando el sitio en el que me quiero sentar
