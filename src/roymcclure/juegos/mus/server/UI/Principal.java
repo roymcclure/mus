@@ -4,7 +4,7 @@ public class Principal {
 
 	public static void main(String[] args) {
 		
-		ServerWindow sw = new ServerWindow();		
+		new ServerWindow();		
 
 	}
 

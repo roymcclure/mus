@@ -1,1 +1,1 @@
-java -cp "%cd%\bin" roymcclure.juegos.mus.CliMus 127.0.0.1 5678
+java -cp "%cd%\bin" roymcclure.juegos.mus.cliente.UI.ClientPrincipal

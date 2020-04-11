@@ -9,12 +9,19 @@ import javax.swing.JTextArea;
 import roymcclure.juegos.mus.common.logic.Language;
 import roymcclure.juegos.mus.server.network.AtenderCliente;
 
-
+/***
+ * 
+ * @author roy
+ *
+ * oversees the global server state
+ * 
+ *
+ */
 public class SrvMus extends Thread {
 
 	// socker for the server
-	ServerSocket s;
-	int port;
+	private ServerSocket socket;
+	private int port = 5678;
 	private boolean running = false;
 	
 	private JTextArea txtAreaLog;
@@ -23,12 +30,45 @@ public class SrvMus extends Thread {
 	// almacenar los hilos de cada cliente
 	private static AtenderCliente[] hilos;
 
-	private GameState gameState;
+
 	
+	private ServerGameState gameState;
+
 	public SrvMus (JTextArea txtLog) {
 		txtAreaLog = txtLog;
-		gameState = new GameState();
+		gameState = new ServerGameState();
+		initThreads();
 	}
+	
+	public void runCommand(String cmd, JTextArea txtLog) {
+		String[] tokens = cmd.split(" ");
+		try {
+			if (tokens[0].toLowerCase().equals("define")) {
+				if (tokens[1].toLowerCase().equals("port")) {
+					if (running) {
+						this.port =Integer.parseInt(tokens[2]); 
+						txtLog.append("New port defined: " + this.port + "\n");
+					} else txtLog.append("ERROR: cannot change port while running.\n"); 
+				}
+			}
+			if (tokens[0].toLowerCase().equals("status")) {
+				if (tokens.length == 1) {
+					txtLog.append("================STATUS:\n");
+					txtLog.append("SERVER: " + (running ? "ONLINE" :  "OFFLINE") + "\n");
+					txtLog.append("Clients connected: " + clientsConnected() + "\n");
+					txtLog.append("State of game: " + gameState.getGameState() + "\n");
+					txtLog.append("Round nr: " + gameState.getId_ronda() + "\n");
+					txtLog.append("Round type: " + gameState.getTipo_ronda() + "\n");
+					txtLog.append("================");					
+				} else 	if (tokens[1].toLowerCase().contentEquals("client")) {
+
+				}
+			}
+		} catch(ArrayIndexOutOfBoundsException e) {
+			txtLog.append("INVALID COMMAND\n");
+		}
+	}
+
 	
 	
 	private static void initThreads() {
@@ -39,7 +79,7 @@ public class SrvMus extends Thread {
 	}
 
 	// How many threads are running
-	private static int nPlayers() {
+	private static int clientsConnected() {
 		int n= 0;
 		for (int i=0; i<MAX_CLIENTS;i++) {
 			if (hilos[i] != null)
@@ -49,7 +89,7 @@ public class SrvMus extends Thread {
 	}
 
 	// returns -1 if all connected
-	private static int freePosition() {
+	private static int getFreeSeatID() {
 		for (int i=0; i<MAX_CLIENTS;i++) {
 			if (hilos[i] == null)
 				return i;
@@ -60,56 +100,41 @@ public class SrvMus extends Thread {
 	public void run() {
 		try {
 			running = true;
-			initThreads();
-			txtAreaLog.append("Reset Thread array.\n");
-			s = new ServerSocket(port);
-			
-			// todo: exception tratando de atarse a un puerto en uso
-
-
-
-
-			//	Se esperan clientes hasta que se hayan conectado cuatro
-			//	Si en algún momento de la partida se hubiera desconectado un cliente
-			//	habríamos vuelto a este punto y después de haber cuatro clientes conectados
-			//	volveríamos al estado en el que se encontrara la partida
-			//  por tanto cada hilo
+			txtAreaLog.append("Resetting client array...");			
+			txtAreaLog.append("reset.\n");
+			txtAreaLog.append("Starting server in port " + port + "...\n");			
+			socket = new ServerSocket(port);
+			txtAreaLog.append("started.\n");			
 
 			while (running) {
+				txtAreaLog.append("Waiting for all players to be seated...\n");		
 				
 				// esperando que entren todos los jugadores
-				while (nPlayers() < 4) {
+				while (clientsConnected() < MAX_CLIENTS) {
 
 					//	Por cada cliente se lanza un hilo que le atenderá
-					txtAreaLog.append("Waiting for client connection...");
-					AtenderCliente hiloCliente = new AtenderCliente(s.accept(), gameState, getAvailableClientId());
+					txtAreaLog.append("---Waiting for client connection...\n");
+					int thread_id = getFreeThreadID(); 
+					hilos[thread_id] =
+							new AtenderCliente(socket.accept(), gameState, getFreeThreadID(), this);
 					txtAreaLog.append("Client connected.\n");
-					hilos[freePosition()] = hiloCliente;			
-					hiloCliente.start();
+					hilos[thread_id].start();			
+					
 					// tras la conexión, cada hilocliente le pregunta al servidor el estado de la partida.
 
 				}
+				txtAreaLog.append("all seated.\n");
+				txtAreaLog.append("Starting game.\n");
 				// actualizamos el estado de juego a playing
-				gameState.setGameState(Language.GameState.PLAYING);
+				gameState.setGameState(Language.ServerGameState.PLAYING);
+				// TODO: esto no tengo clar a
 				// notificarmos a cada hilo para que se despierte.
-				while (gameState.getGameState() != Language.GameState.GAME_FINISHED) {
+				// wakeClients();
+				while (gameState.getGameState() != Language.ServerGameState.GAME_FINISHED) {
 					Thread.sleep(1000);
 				}
 				
 			}
-
-			
-			
-			txtAreaLog.append("All clients connected. Starting game...\n");
-			
-			
-			
-			// Deck is instantiated and cards shuffled on game start.
-			// d.iniciarPartida();
-			// We must keep in mind that clients do not need to know what is on the deck and what is not.
-			// they just need to know their own cards
-			
-			
 			
 		} catch (SocketException e) {
 			
@@ -129,20 +154,27 @@ public class SrvMus extends Thread {
 		
 	}
 	
-	private int getAvailableClientId() {
-		for (int i=0; i<MAX_CLIENTS;i++) {
+	/*
+	private void wakeClients() {
+		for (int i = 0; i<MAX_CLIENTS;i++) {
+			hilos[i].notify();
+		}
+		
+	}
+	*/
+
+	
+	public void releaseThread(byte seat_ID) {
+		hilos[seat_ID] = null;
+	}
+
+	private byte getFreeThreadID() {
+		for (byte i=0; i<MAX_CLIENTS;i++) {
 			if (hilos[i]==null) {
 				return i;
 			}
 		}
 		return -1;
-	}
-
-
-	public void start(String port_) throws NumberFormatException, IOException {
-		
-		port = Integer.parseInt(port_);
-				
 	}
 
 	public void halt() throws IOException {
@@ -152,21 +184,24 @@ public class SrvMus extends Thread {
 			try {
 				// ac.sendCloseMsg();
 				if (hilos[i]!=null) {
+					txtAreaLog.append("Attempting to kill client " + i + "\n");
 					hilos[i].interrupt();
 					hilos[i].disconnect();
 					hilos[i].join();
 
 				}
+				socket.close();				
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
+			} catch (Exception e) {
+				
 			}
 		}
 		//	cerrar el socket
-			this.interrupt();
-		System.out.println("interrupt llamado");
-		s.close();
-		System.out.println("Socket cerrado");
+		 this.interrupt();
+
+
 	}
 
 }

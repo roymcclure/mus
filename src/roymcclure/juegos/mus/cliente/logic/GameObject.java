@@ -30,7 +30,8 @@ public abstract class GameObject {
 		this.velY = velY;
 	}
 */
-	public abstract void tick();	
+	public abstract void tick();
+	
 	public abstract void render(Graphics g);	
 	
 	public int getX() {

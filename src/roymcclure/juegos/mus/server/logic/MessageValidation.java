@@ -26,15 +26,15 @@ public class MessageValidation {
 	}
 	
 	// does the message make sense within the context?
-	public static boolean isClientMessageConsistent(int action, int qty, GameState gs, int client_id) {
+	public static boolean isClientMessageConsistent(ClientMessage cm, ServerGameState gs, int client_id) {
 		// pass only makes sense if round_id is 0
-		if (action == Language.PlayerActions.PASS && gs.getGameState() != 0) {
+		if (cm.getAction() == Language.PlayerActions.PASS && gs.getGameState() != 0) {
 			return false;
 		}
-		if (action == Language.PlayerActions.ENVITE) {
+		if (cm.getAction() == Language.PlayerActions.ENVITE) {
 			// solo aceptable cuando:
 			// - estamos en ronda de juego
-			if (gs.getGameState()!=Language.GameState.PLAYING) {
+			if (gs.getGameState()!=Language.ServerGameState.PLAYING) {
 				return false;
 			}
 			// - me toca hablar

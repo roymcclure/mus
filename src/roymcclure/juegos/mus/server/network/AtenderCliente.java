@@ -9,9 +9,9 @@ import java.net.Socket;
 import java.net.SocketException;
 
 import roymcclure.juegos.mus.common.network.ClientMessage;
-import roymcclure.juegos.mus.server.logic.GameState;
-import roymcclure.juegos.mus.server.logic.MessageValidation;
-import roymcclure.juegos.mus.common.logic.Language;
+import roymcclure.juegos.mus.common.network.ServerMessage;
+import roymcclure.juegos.mus.server.logic.ServerGameState;
+import roymcclure.juegos.mus.server.logic.SrvMus;
 
 /**
  * 
@@ -31,76 +31,80 @@ import roymcclure.juegos.mus.common.logic.Language;
 public class AtenderCliente extends Thread {
 	
 	private Socket socket;
-	int id;
+	byte thread_id;
 	private boolean connected = false;
-	GameState gs;
-	
+	ServerGameState gs;
+	SrvMus server;
+	private String client_ID;
 	
 	// data for sending / receiving
-	private InputStream in;
-	private ObjectInputStream objIn;
+	private InputStream in = null;
+	private ObjectInputStream objIn = null;
 	
-	private ServerMessage gdp;
 	private ClientMessage cm;
 	
-	private OutputStream out2;
-	private ObjectOutputStream objOut2;
+	private OutputStream out;
+	private ObjectOutputStream objOut;
 	
-	public AtenderCliente (Socket s, GameState gs, int id) {
+	public AtenderCliente (Socket s, ServerGameState gs, byte thread_id, SrvMus server) {
 		this.socket = s;
 		this.gs = gs;
 		connected = true;
-		this.id = id;
+		this.thread_id = thread_id;
+		this.server = server;
 	}
 	
 	public void run() {
 		// el socket representa mi conexión con el cliente.
 		// tengo que enviarle datos o tengo que recibir de él?
-		// esto depende del estado de las cosas,
+		// esto depende del estado de la partida,
 		// por lo que antes de leer o escribir tendré que examinar el estado de la partida
 		// puede haber casos en los que el cliente se deba quedar esperando hasta que su hilo
 		// le diga que ya puede hablar, por ejemplo cuando el cliente se ha sentado a la mesa
 		// 
 		while(connected) {
 			try {
-				// puede determinarse si el servidor debe escuchar al cliente o hablarle
-				// en función del estado del mundo y el jugador?
-				
-				if (gs.getExpectedAction(id)==Language.ConnectionState.READ_FROM_CLIENT) {
-					cm = this.receive();
-					if (MessageValidation.isClientMessageConsistent(cm, gs, id))
-				} else if (gs.getExpectedAction(id)==Language.ConnectionState.WRITE_TO_CLIENT){
-					this.send(ServerMessage.forgeDataPacket(gs));
-				} else if(gs.getExpectedAction(id) == Language.ConnectionState.WAIT_EXTERNAL) {
-					wait();
-				}
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-				// thread was interrupted
+				System.out.print("AtenderCliente de thread "+thread_id+": recibiendo mensaje...");
+				cm = this.receive();
+				System.out.println("recibido.");
+				// if the 
+				System.out.print("ATenderCliente de thread "+ thread_id + ": Actualizando estado ...");
+				gs.updateGameStateWith(cm, thread_id);
+				System.out.println("Actualizado.");
+				System.out.print("Creando una respuesta y enviándola....");
+				send(ServerMessage.forgeDataPacket(gs, thread_id));
+				System.out.println("Enviada");
+
 			} catch (ClassNotFoundException e) {
 				e.printStackTrace();
 				// received object's class was not found
 			} catch (SocketException se) {
-				se.printStackTrace();
+				connected = false;
+				System.out.println("Client disconnected.");
+				// se.printStackTrace();
 			} catch (IOException e) {
 				e.printStackTrace();
 				// error reading/writing
 			} 
 		}
+		// tell server that user disconnected
+		// and to release seat_id
+		server.releaseThread(thread_id);
+		
 
 	}
 	
 	public ClientMessage receive() throws IOException, ClassNotFoundException {
-		in  = socket.getInputStream();
-		objIn = new ObjectInputStream(in);
+		if (objIn==null)
+			objIn = new ObjectInputStream(socket.getInputStream());
 		ClientMessage cm = (ClientMessage) objIn.readObject();
 		return cm;		
 	}
 
 	public void send(ServerMessage sm) throws IOException {
-		out2    = socket.getOutputStream();
-		objOut2 = new ObjectOutputStream (out2);
-		objOut2.writeObject(sm);		
+		if (objOut==null)
+			objOut = new ObjectOutputStream (socket.getOutputStream());
+		objOut.writeObject(sm);		
 	}
 	
 	public void disconnect() {

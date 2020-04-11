@@ -2,7 +2,6 @@ package roymcclure.juegos.mus.cliente.UI;
 
 import java.awt.Color;
 import java.awt.Graphics;
-import java.awt.Image;
 import java.awt.Point;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -11,9 +10,9 @@ import java.io.IOException;
 import javax.imageio.ImageIO;
 
 import roymcclure.juegos.mus.cliente.logic.Game;
-import roymcclure.juegos.mus.cliente.logic.GameData;
 import roymcclure.juegos.mus.cliente.logic.GameObject;
 import roymcclure.juegos.mus.cliente.logic.ID;
+import roymcclure.juegos.mus.common.logic.Language;
 
 // this is the view of a card object
 // where is rendered depends on the player that owns it
@@ -78,7 +77,9 @@ public class CartaView extends GameObject {
 		
 	}
 
-	// Devuelve x y de la carta i [0..3] del jugador
+	// es responsabilidad de cada vista definir su posicion?
+	// no, es responsabilidad de los parámetros de la interfaz
+	// quién define los parámetros de la interfaz?
 	public static Point getBoardPosition(int jugador, int id_carta) {
 		Point p = new Point();
 		if (jugador %2 == 0) {
@@ -111,11 +112,11 @@ public class CartaView extends GameObject {
 	}
 	
 	private int getX(int carta_id) {
-		return (carta_id % GameData.CARDS_PER_SUIT) * ANCHO_CARTA_FICHERO;
+		return (carta_id % Language.GameDefinitions.CARDS_PER_SUIT) * ANCHO_CARTA_FICHERO;
 	}
 
 	private int getY(int carta_id) {
-		return (carta_id / GameData.CARDS_PER_SUIT) * ALTO_CARTA_FICHERO;		
+		return (carta_id / Language.GameDefinitions.CARDS_PER_SUIT) * ALTO_CARTA_FICHERO;		
 	}
 	
 

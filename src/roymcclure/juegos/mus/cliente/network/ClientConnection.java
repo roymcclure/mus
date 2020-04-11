@@ -9,36 +9,36 @@ import java.net.ConnectException;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
-import javax.swing.SwingUtilities;
-
-import roymcclure.juegos.mus.cliente.UI.ClientWindow;
+import roymcclure.juegos.mus.cliente.logic.jobs.*;
 import roymcclure.juegos.mus.common.network.*;
-import roymcclure.juegos.mus.common.logic.*;
-
 
 public class ClientConnection extends Thread {
-	
+
 	private java.net.Socket socket;
-	private InputStream in;
-	private ObjectInputStream objIn;
-	private ServerDataPacket gdp;
-	private OutputStream out;
-	private ObjectOutputStream objOut;
-	private int connState;
-	ClientWindow clientWindow;
+	private ConnectionJobsQueue connectionJobs;
+	private ControllerJobsQueue controllerJobs;
+
+	private ObjectInputStream objIn = null;
 	
-	private final int WAITING = 0;
-	private final int SENDING = 1;
-	private final int CLOSED = 2;
+	private OutputStream out = null;
+	private ObjectOutputStream objOut = null;
+	private InputStream in = null;	
+	private boolean connected = false;
+	// is player ID really an attribute of the connection? feels off but so does in clientGameState
+
 	
-	public ClientConnection(ClientWindow clientWindow) {
-		this.clientWindow = clientWindow;
+	// there has to be some link between client window and connection
+	// connection receives the data
+	public ClientConnection(ConnectionJobsQueue connectionJobs, ControllerJobsQueue controllerJobs) {
+		this.connectionJobs = connectionJobs;
+		this.controllerJobs = controllerJobs;
 	}
-	
+
 	public int connect(String url, int port) {
 		int error = 0; // OK
 		try {
 			socket = new Socket(url, port);
+			connected = true;			
 		} catch (UnknownHostException e) {
 			// server doesnt respond
 			error = 1;
@@ -53,92 +53,103 @@ public class ClientConnection extends Thread {
 		}
 		return error;
 	}
-	
-	
 
 	@Override
 	public void run() {
-		while(connState != CLOSED) {
-			System.out.println("running client connection thread...");
+		ServerMessage sm;
+		ConnectionJob job;
+		while (connected) {
 
-			try {
-				Thread.sleep(1000);				
-				if (connState == WAITING) {
-					gdp = receive();
-					// updateUI(gdp);				
-				} else if (connState == SENDING){
-					ClientMessage cm = null;//getDataPacket();
-					send(cm);
-					connState = WAITING;
+			try {				
+				// fetch job from messageQueue
+				job = getJob();								
+				// forge petition from job
+				send(job.getClientMessage());
+				System.out.println("ClientConnection: sent ClientMessage from Job, action:" + job.getClientMessage().getAction());
+				// if job defines that a reply is needed, wait for reply
+				if (job.isReplyNeeded()) {
+					System.out.print("ClientConnection: awaiting reply from server...");					
+					sm = receive();
+					
+					System.out.println("reply received.");
+					System.out.println("Reply:");
+					sm.printContent();
+					synchronized(controllerJobs) {
+						controllerJobs.postControllerJob(new ServerMessageJob(sm));
+						controllerJobs.notify();
+					}
+					System.out.println("Posted job to controller Jobs");
 				}
-			} catch(ClassCastException e) {
-				System.out.println("Se recibió un paquete con objeto inesperado!");						
 				
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
+			}  catch (BrokenConnectionException e) {
 				e.printStackTrace();
-			} catch (BrokenConnectionException e) {
-				System.out.println("SE CORTO LA CONEXION!!");
-				showConnectionDialog();
-			}
-		
+				connected = false;
+			} catch (IOException e) {
+
+				e.printStackTrace();
+			} 
+
 		}
 		try {
 			socket.close();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			System.out.println("WTF HERE2?");			
+			System.out.println("WTF HERE2?");
 		}
 	}
-		
-	
-	private void showConnectionDialog() {
-		SwingUtilities.invokeLater(new Runnable() {
 
-			@Override
-			public void run() {
-				clientWindow.showConnectionDialog();
-
-			}
-
-		});
+	public void send(ClientMessage cm) throws IOException {
+		if (out==null && objOut == null) {
+			out = socket.getOutputStream();
+			objOut = new ObjectOutputStream(out);
+		}
+		objOut.writeObject(cm);
 	}
-	
-	public void send(ClientMessage cm) {
+
+	public ServerMessage receive() throws BrokenConnectionException {
+		ServerMessage sm;
+
 		try {
-			out    = socket.getOutputStream();
-			objOut = new ObjectOutputStream (out);
-			objOut.writeObject(cm);
-			
-		}
-		catch (IOException e) {
-			
-		}
-	}
-	
-	public ServerDataPacket receive() throws BrokenConnectionException {
-		try {
-			in  = socket.getInputStream();
-			if (in.read()==-1) 
-				throw new BrokenConnectionException();
-			objIn = new ObjectInputStream(in);
-			gdp = (ServerDataPacket) objIn.readObject();
-			return gdp;
-		}
-		catch (IOException e) {
-			gdp = new ServerDataPacket();
-			return gdp;
-		}
-		catch (ClassNotFoundException e) {
-			gdp = new ServerDataPacket();
-			return gdp;
-		}
-		catch (ClassCastException e) {
+			if (in==null)
+				in = socket.getInputStream();
+			//if (in.read() == -1)
+			//	throw new BrokenConnectionException();
+			if (objIn == null)
+				objIn = new ObjectInputStream(in);
+			sm = (ServerMessage) objIn.readObject();
+			return sm;
+		} catch (IOException e) {
+			System.out.println("Error: IOException!!");
 			e.printStackTrace();
-			gdp = new ServerDataPacket();
-			return gdp;
+			return null;
+		} catch (ClassNotFoundException e) {
+			System.out.println("Error: ClassNotFoundException!!");
+			e.printStackTrace();			
+			return null;
+		} catch (ClassCastException e) {
+			System.out.println("Error: ClassCastException!!");
+			e.printStackTrace();
+			return null;
 		}
 	}
 	
+	private ConnectionJob getJob() {
+		ConnectionJob job;
+		synchronized(connectionJobs) {
+			if (connectionJobs.isEmpty()) {
+				try {
+					connectionJobs.wait();
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			job = (ConnectionJob) connectionJobs.getConnectionJob();
+			System.out.println("ClientConnection: retrieved a Connection job from the queue.");
+		}			
+				
+		return job;
+	}
+
 }
