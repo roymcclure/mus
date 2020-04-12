@@ -48,7 +48,7 @@ public class ClientGameState {
 	public void updateWith(ServerMessage sm) {
 		// ids
 		for (byte i = 0; i<Language.GameDefinitions.MAX_CLIENTS; i++) {
-			this.setPlayerID_by_Seat(i, sm.getPlayerId_By_Seat(i));
+			this.setPlayerID_by_Seat(i, sm.getTableState().getPlayerId_By_Seat(i));
 		}
 		// cards
 		for (byte player = 0; player<Language.GameDefinitions.MAX_CLIENTS; player++) {

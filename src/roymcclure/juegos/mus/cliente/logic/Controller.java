@@ -12,7 +12,8 @@ import roymcclure.juegos.mus.common.network.ServerMessage;
  * cambios en el modelo.
  * Todos los cambios en el modelo pasan de alguna manera por esta clase.
  * El input desde el listener y la información recibida desde ClientConnection
- * modifican el modelo.
+ * son enviados a colas de trabajo, que son leídas modifican el modelo.
+ * A su vez el controlador genera las solicitudes al servidor.
  * Los cambios en el modelo modifican la vista.
  * El modelo es básicamente clientGameState. 
  * 
@@ -92,10 +93,10 @@ public class Controller implements Runnable {
 				// what seats are taken, and by whom
 				System.out.println("Received message, client state: UNSEATED");
 				for (byte i=0; i < Language.GameDefinitions.MAX_CLIENTS; i++) {
-					System.out.println("setting client game state, player id:" + sm.getPlayerId_By_Seat(i) + " in seat " + i);
-					ClientWindow.clientGameState.setPlayerID_by_Seat(i, sm.getPlayerId_By_Seat(i));
+					System.out.println("setting client game state, player id:" + sm.getTableState().getPlayerId_By_Seat(i) + " in seat " + i);
+					ClientWindow.clientGameState.setPlayerID_by_Seat(i, sm.getTableState().getPlayerId_By_Seat(i));
 					String myName = ClientWindow.clientGameState.getPlayerName();
-					if (sm.getPlayerId_By_Seat(i).equals(myName)) {
+					if (sm.getTableState().getPlayerId_By_Seat(i).equals(myName)) {
 						System.out.println("EL SERVIDOR ME CONFIRMA QUE ME HE SENTADO");
 					}
 				}
