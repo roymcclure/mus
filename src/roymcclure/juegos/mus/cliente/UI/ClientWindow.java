@@ -23,6 +23,7 @@ import roymcclure.juegos.mus.cliente.logic.Controller;
 import roymcclure.juegos.mus.cliente.logic.Game;
 import roymcclure.juegos.mus.cliente.logic.jobs.*;
 import roymcclure.juegos.mus.cliente.network.ClientConnection;
+import roymcclure.juegos.mus.cliente.network.GetNetworkAddress;
 import roymcclure.juegos.mus.common.logic.Language;
 
 public class ClientWindow extends JFrame {
@@ -32,7 +33,7 @@ public class ClientWindow extends JFrame {
 	 */
 	private static final long serialVersionUID = 6374380056738883771L;
 
-	public static final int WIDTH = 1024, HEIGHT = 1024;
+	public static final int WIDTH = 640, HEIGHT = 480;
 	
 	JDialog connectionDialog;
 	ClientConnection connection;
@@ -107,19 +108,21 @@ public class ClientWindow extends JFrame {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				//tell the connection object to try to connect
-				int error = connection.connect(txtUrl.getText(), Integer.parseInt(txtPort.getText()));
-				
-				if (error == 0) {
-					hideConnectionDialog();
-					clientGameState.setGameState(Language.ClientGameState.AWAITING_GAME_STATE);
-					connection.start();
-					clientGameState.setPlayerName(txtName.getText());
-					controller.postInitial();
-				} else if (error==1 || error == 2) {
-					b.setText("Unable to connect. Try again...");
-				} else if (error == 3) {
-					b.setText("Error transfering data. Try again...");
+				if (isValidated(txtUrl.getText(),txtPort.getText(),txtName.getText())) {
+					//tell the connection object to try to connect
+					int error = connection.connect(txtUrl.getText(), Integer.parseInt(txtPort.getText()));
+
+					if (error == 0) {
+						hideConnectionDialog();
+						connection.start();
+						
+						ClientGameState.setPlayerID(txtName.getText()+":"+GetNetworkAddress.GetAddress("mac").replace("-", ""));
+						Controller.postInitialRequest();
+					} else if (error==1 || error == 2) {
+						b.setText("Unable to connect. Try again...");
+					} else if (error == 3) {
+						b.setText("Error transfering data. Try again...");
+					}
 				}
 			}
 			
@@ -134,6 +137,11 @@ public class ClientWindow extends JFrame {
 		
 	}
 	
+	protected boolean isValidated(String text, String text2, String text3) {
+		// TODO 
+		return true;
+	}
+
 	public void showConnectionDialog() {
 		connectionDialog.setVisible(true);
 	}

@@ -6,7 +6,9 @@ import java.net.SocketException;
 
 import javax.swing.JTextArea;
 
+import roymcclure.juegos.mus.common.logic.GameState;
 import roymcclure.juegos.mus.common.logic.Language;
+import roymcclure.juegos.mus.common.logic.TableState;
 import roymcclure.juegos.mus.server.network.AtenderCliente;
 
 /***
@@ -32,45 +34,16 @@ public class SrvMus extends Thread {
 
 
 	
-	private ServerGameState gameState;
+	private GameState gameState;
+	private TableState tableState;
 
 	public SrvMus (JTextArea txtLog) {
 		txtAreaLog = txtLog;
-		gameState = new ServerGameState();
+		gameState = new GameState();
+		tableState = new TableState();
 		initThreads();
 	}
-	
-	public void runCommand(String cmd, JTextArea txtLog) {
-		String[] tokens = cmd.split(" ");
-		try {
-			if (tokens[0].toLowerCase().equals("define")) {
-				if (tokens[1].toLowerCase().equals("port")) {
-					if (running) {
-						this.port =Integer.parseInt(tokens[2]); 
-						txtLog.append("New port defined: " + this.port + "\n");
-					} else txtLog.append("ERROR: cannot change port while running.\n"); 
-				}
-			}
-			if (tokens[0].toLowerCase().equals("status")) {
-				if (tokens.length == 1) {
-					txtLog.append("================STATUS:\n");
-					txtLog.append("SERVER: " + (running ? "ONLINE" :  "OFFLINE") + "\n");
-					txtLog.append("Clients connected: " + clientsConnected() + "\n");
-					txtLog.append("State of game: " + gameState.getGameState() + "\n");
-					txtLog.append("Round nr: " + gameState.getId_ronda() + "\n");
-					txtLog.append("Round type: " + gameState.getTipo_ronda() + "\n");
-					txtLog.append("================");					
-				} else 	if (tokens[1].toLowerCase().contentEquals("client")) {
 
-				}
-			}
-		} catch(ArrayIndexOutOfBoundsException e) {
-			txtLog.append("INVALID COMMAND\n");
-		}
-	}
-
-	
-	
 	private static void initThreads() {
 		hilos = new AtenderCliente[MAX_CLIENTS];
 		for (int i=0; i<MAX_CLIENTS;i++) {
@@ -83,18 +56,11 @@ public class SrvMus extends Thread {
 		int n= 0;
 		for (int i=0; i<MAX_CLIENTS;i++) {
 			if (hilos[i] != null)
-				n++;
+				if (hilos[i].isConnected()) {
+					n++;
+				}
 		}		
 		return n;
-	}
-
-	// returns -1 if all connected
-	private static int getFreeSeatID() {
-		for (int i=0; i<MAX_CLIENTS;i++) {
-			if (hilos[i] == null)
-				return i;
-		}
-		return -1;
 	}
 
 	public void run() {
@@ -116,14 +82,11 @@ public class SrvMus extends Thread {
 					txtAreaLog.append("---Waiting for client connection...\n");
 					int thread_id = getFreeThreadID(); 
 					hilos[thread_id] =
-							new AtenderCliente(socket.accept(), gameState, getFreeThreadID(), this);
+							new AtenderCliente(socket.accept(), gameState, tableState, getFreeThreadID(), this);
 					txtAreaLog.append("Client connected.\n");
 					hilos[thread_id].start();			
-					
-					// tras la conexión, cada hilocliente le pregunta al servidor el estado de la partida.
-
 				}
-				txtAreaLog.append("all seated.\n");
+				txtAreaLog.append("all seated. Starting game:\n");
 				txtAreaLog.append("Starting game.\n");
 				// actualizamos el estado de juego a playing
 				gameState.setGameState(Language.ServerGameState.PLAYING);
@@ -154,23 +117,15 @@ public class SrvMus extends Thread {
 		
 	}
 	
-	/*
-	private void wakeClients() {
-		for (int i = 0; i<MAX_CLIENTS;i++) {
-			hilos[i].notify();
-		}
-		
-	}
-	*/
-
-	
-	public void releaseThread(byte seat_ID) {
-		hilos[seat_ID] = null;
+	public void releaseThread(byte thread_id) {
+		hilos[thread_id] = null;
 	}
 
 	private byte getFreeThreadID() {
 		for (byte i=0; i<MAX_CLIENTS;i++) {
 			if (hilos[i]==null) {
+				return i;
+			} else if(!hilos[i].isConnected()){
 				return i;
 			}
 		}
@@ -179,6 +134,7 @@ public class SrvMus extends Thread {
 
 	public void halt() throws IOException {
 		// enviar mensaje a todos los clientes que el servidor se cierra
+		txtAreaLog.append("HALT CALLED ON SERVER");
 		running = false;
 		for (int i = 0; i<MAX_CLIENTS;i++ ) {
 			try {
@@ -188,11 +144,12 @@ public class SrvMus extends Thread {
 					hilos[i].interrupt();
 					hilos[i].disconnect();
 					hilos[i].join();
+					hilos[i] = null;
 
 				}
 				socket.close();				
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
+
 				e.printStackTrace();
 			} catch (Exception e) {
 				
@@ -203,5 +160,57 @@ public class SrvMus extends Thread {
 
 
 	}
+	
+	// accepts commands via server window
+	public void runCommand(String cmd, JTextArea txtLog) {
+		String[] tokens = cmd.split(" ");
+		try {
+			if (tokens[0].toLowerCase().equals("define")) {
+				defineCommand(tokens, txtLog);				
+			}
+			if (tokens[0].toLowerCase().equals("status")) {
+				statusCommand(tokens, txtLog);
+			}
+		} catch(ArrayIndexOutOfBoundsException e) {
+			txtLog.append("INVALID COMMAND\n");
+		}
+	}
+
+	private void defineCommand(String[] tokens, JTextArea txtLog) {
+		if (tokens.length == 1) {
+			txtLog.append("stones_to_game [" + gameState.getPiedras_juego() + "]\n");
+			txtLog.append("games_to_cow: " + gameState.getJuegos_vaca() + "\n");
+			txtLog.append("cows_to_match: " + gameState.getVacas_partida() + "\n");			
+		}
+		if (tokens[1].toLowerCase().equals("port")) {
+			if (running) {
+				this.port =Integer.parseInt(tokens[2]); 
+				txtLog.append("New port defined: " + this.port + "\n");
+			} else txtLog.append("ERROR: cannot change port while running.\n");
+		}
+	}
+	
+	private void statusCommand(String[] tokens, JTextArea txtLog) {
+		if (tokens.length == 1) {
+			txtLog.append("========SERVER=STATUS:\n");
+			txtLog.append("SERVER: " + (running ? "ONLINE" :  "OFFLINE") + "\n");
+			txtLog.append("Clients connected: " + clientsConnected() + "\n");
+			for (int i = 0; i < MAX_CLIENTS; i++) {
+				txtLog.append("ID in thread " + i + ":"+gameState.getPlayerID(i)+"\n");
+			}
+		} else 	if (tokens[1].toLowerCase().contentEquals("client")) {
+			// show state for that client
+			try {
+				txtLog.append("Player ID [" + tableState.getClient(Integer.parseInt(tokens[2])).getID() +"]\n");
+			} catch (Exception e) {
+				txtLog.append("Usage: status client [thread_id]\n");
+			}
+		} else 	if (tokens[1].toLowerCase().contentEquals("table")) {
+			txtLog.append("========TABLE=STATUS:\n");			
+			for (int i = 0; i < MAX_CLIENTS; i++) {
+				txtLog.append( "[seat_id "+i+"]" + "Player ID [" + tableState.getClient(i).getID() +"]\n");				
+			}
+		}
+	}	
 
 }

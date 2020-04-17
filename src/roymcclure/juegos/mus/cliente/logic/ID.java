@@ -4,7 +4,8 @@ public enum ID {
 
 	Player,
 	Carta,
-	SeatButton;
+	SeatButton,
+	Text;
 
 	
 }

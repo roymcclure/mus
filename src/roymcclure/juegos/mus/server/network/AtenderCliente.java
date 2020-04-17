@@ -1,16 +1,18 @@
 package roymcclure.juegos.mus.server.network;
 
+import static roymcclure.juegos.mus.common.logic.Language.PlayerActions.*;
+import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.*;
+
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.OutputStream;
 import java.net.Socket;
 import java.net.SocketException;
 
+import roymcclure.juegos.mus.common.logic.GameState;
+import roymcclure.juegos.mus.common.logic.TableState;
 import roymcclure.juegos.mus.common.network.ClientMessage;
 import roymcclure.juegos.mus.common.network.ServerMessage;
-import roymcclure.juegos.mus.server.logic.ServerGameState;
 import roymcclure.juegos.mus.server.logic.SrvMus;
 
 /**
@@ -31,24 +33,24 @@ import roymcclure.juegos.mus.server.logic.SrvMus;
 public class AtenderCliente extends Thread {
 	
 	private Socket socket;
-	byte thread_id;
+	byte thread_id=-1;
 	private boolean connected = false;
-	ServerGameState gs;
+	GameState gs;
+	TableState ts;
 	SrvMus server;
-	private String client_ID;
 	
 	// data for sending / receiving
-	private InputStream in = null;
 	private ObjectInputStream objIn = null;
+	private ObjectOutputStream objOut =  null;	
 	
 	private ClientMessage cm;
+
+
 	
-	private OutputStream out;
-	private ObjectOutputStream objOut;
-	
-	public AtenderCliente (Socket s, ServerGameState gs, byte thread_id, SrvMus server) {
+	public AtenderCliente (Socket s, GameState gs, TableState ts, byte thread_id, SrvMus server) {
 		this.socket = s;
 		this.gs = gs;
+		this.ts = ts;
 		connected = true;
 		this.thread_id = thread_id;
 		this.server = server;
@@ -64,15 +66,12 @@ public class AtenderCliente extends Thread {
 		// 
 		while(connected) {
 			try {
-				System.out.print("AtenderCliente de thread "+thread_id+": recibiendo mensaje...");
+
 				cm = this.receive();
-				System.out.println("recibido.");
-				// if the 
-				System.out.print("ATenderCliente de thread "+ thread_id + ": Actualizando estado ...");
-				gs.updateGameStateWith(cm, thread_id);
-				System.out.println("Actualizado.");
-				System.out.print("Creando una respuesta y enviándola....");
-				send(ServerMessage.forgeDataPacket(gs, thread_id));
+				System.out.print("thread_id ["+thread_id+"] sent a message.\n");
+				System.out.println(cm);
+				updateGameStateWith(cm, thread_id);
+				send(ServerMessage.forgeDataPacket(gs, ts, thread_id));
 				System.out.println("Enviada");
 
 			} catch (ClassNotFoundException e) {
@@ -80,7 +79,13 @@ public class AtenderCliente extends Thread {
 				// received object's class was not found
 			} catch (SocketException se) {
 				connected = false;
-				System.out.println("Client disconnected.");
+				System.out.println("Client disconnected.Calling releaseThread("+thread_id+")");
+				server.releaseThread(thread_id);
+				synchronized(gs) {
+					ts.clearSeat(ts.getSeatOf(gs.getPlayerID(thread_id)));
+					gs.setPlayerID(NO_PLAYER, thread_id);
+					
+				}
 				// se.printStackTrace();
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -107,6 +112,10 @@ public class AtenderCliente extends Thread {
 		objOut.writeObject(sm);		
 	}
 	
+	public boolean isConnected() {
+		return connected;
+	}
+	
 	public void disconnect() {
 		try {
 			socket.close();
@@ -117,6 +126,28 @@ public class AtenderCliente extends Thread {
 		}
 
 	}
+	
+	public synchronized void updateGameStateWith(ClientMessage cm, byte thread_id) {
+		// si cliente solicita información del mundo, realmente no hacemos gran cosa.
+		if (cm.getAction() == REQUEST_GAME_STATE) {
+			// player can pass their name here
+			String playerID = cm.getInfo();
+			synchronized(gs) {
+				gs.setPlayerID(playerID, thread_id);
+			}
+			System.out.println("SERVER: player " + playerID.toString() + " connected.");			
+		}
+		
+		if (cm.getAction() == REQUEST_SEAT) {
+			// we try to seat the player in the requested seat
+			// we assume the player knows the game state so it doesnt really need
+			// a refresh at this point
+			System.out.println("PLAYER " + gs.getPlayerID(thread_id) + " requested the SEAT " + cm.getQuantity());
+			byte requested_seat = cm.getQuantity();
+			ts.takeAseat(requested_seat, gs.getPlayerID(thread_id));
+		}
+
+	}	
 
 
 }

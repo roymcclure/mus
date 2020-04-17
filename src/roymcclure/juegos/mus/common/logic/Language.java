@@ -25,11 +25,10 @@ public class Language {
 
 	public class ClientGameState {
 		public static final byte 	AWAITING_GAME_STATE = 0,
-									UNSEATED = 1,
-									SEATED = 2,
+									PICKING_SEAT = 1,
+									AWAITING_ALL_SEATED = 2,
 									PLAYING = 3,
-									DISCONNECTED = -1,
-									AWAITING_ALL_SEATED = 4;
+									DISCONNECTED = -1;
 	}
 	
 	// connection state
@@ -44,8 +43,10 @@ public class Language {
 									ERROR = 1;
 	}
 
-	
+	// TODO: these should be server-defined
+	// dont really want to hard-code them
 	public class GameDefinitions {
+		public static final String NO_PLAYER="";
 		public static final byte CARDS_PER_SUIT = 12,
 								 CARDS_PER_HAND = 4,
 								TOTAL_CARDS = 48,
@@ -53,7 +54,8 @@ public class Language {
 								STONES_TO_ROUND = 30, // cuantas piedras hacen falta para ganar una vaca?
 								ROUNDS_TO_COW = 3,
 								ID_CARTA_DORSO = 49,// cuantos juegos para ganar una vaca?
-								COWS_TO_GAME = 1; // cuantas vacas hacen falta para ganar la partida?
+								COWS_TO_GAME = 1,
+								UNSEATED = -1; // cuantas vacas hacen falta para ganar la partida?
 		
 		public static final byte ID_NORTH_SEAT = 0,
 								 ID_EAST_SEAT = 1,

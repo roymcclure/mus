@@ -14,9 +14,9 @@ import roymcclure.juegos.mus.common.network.*;
 
 public class ClientConnection extends Thread {
 
-	private java.net.Socket socket;
-	private ConnectionJobsQueue connectionJobs;
-	private ControllerJobsQueue controllerJobs;
+	private static java.net.Socket socket;
+	private static ConnectionJobsQueue _connectionJobs;
+	private static ControllerJobsQueue _controllerJobs;
 
 	private ObjectInputStream objIn = null;
 	
@@ -24,14 +24,10 @@ public class ClientConnection extends Thread {
 	private ObjectOutputStream objOut = null;
 	private InputStream in = null;	
 	private boolean connected = false;
-	// is player ID really an attribute of the connection? feels off but so does in clientGameState
-
 	
-	// there has to be some link between client window and connection
-	// connection receives the data
 	public ClientConnection(ConnectionJobsQueue connectionJobs, ControllerJobsQueue controllerJobs) {
-		this.connectionJobs = connectionJobs;
-		this.controllerJobs = controllerJobs;
+		_connectionJobs = connectionJobs;
+		_controllerJobs = controllerJobs;
 	}
 
 	public int connect(String url, int port) {
@@ -65,20 +61,15 @@ public class ClientConnection extends Thread {
 				job = getJob();								
 				// forge petition from job
 				send(job.getClientMessage());
-				System.out.println("ClientConnection: sent ClientMessage from Job, action:" + job.getClientMessage().getAction());
 				// if job defines that a reply is needed, wait for reply
 				if (job.isReplyNeeded()) {
-					System.out.print("ClientConnection: awaiting reply from server...");					
 					sm = receive();
-					
-					System.out.println("reply received.");
-					System.out.println("Reply:");
 					sm.printContent();
-					synchronized(controllerJobs) {
-						controllerJobs.postControllerJob(new ServerMessageJob(sm));
-						controllerJobs.notify();
+					synchronized(_controllerJobs) {
+						_controllerJobs.postControllerJob(new ServerMessageJob(sm));
+						_controllerJobs.notify();
 					}
-					System.out.println("Posted job to controller Jobs");
+					System.out.println("[ClientConnection] Posted job to controller Jobs\n");
 				}
 				
 			}  catch (BrokenConnectionException e) {
@@ -95,7 +86,6 @@ public class ClientConnection extends Thread {
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			System.out.println("WTF HERE2?");
 		}
 	}
 
@@ -136,17 +126,17 @@ public class ClientConnection extends Thread {
 	
 	private ConnectionJob getJob() {
 		ConnectionJob job;
-		synchronized(connectionJobs) {
-			if (connectionJobs.isEmpty()) {
+		synchronized(_connectionJobs) {
+			if (_connectionJobs.isEmpty()) {
 				try {
-					connectionJobs.wait();
+					_connectionJobs.wait();
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
-			job = (ConnectionJob) connectionJobs.getConnectionJob();
-			System.out.println("ClientConnection: retrieved a Connection job from the queue.");
+			job = (ConnectionJob) _connectionJobs.getConnectionJob();
+			System.out.println("[ClientConnection] Retrieved a Connection job from the queue.");
 		}			
 				
 		return job;

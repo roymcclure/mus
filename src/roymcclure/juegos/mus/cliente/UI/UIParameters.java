@@ -18,30 +18,46 @@ public class UIParameters {
 				calculatedY = ClientWindow.HEIGHT / 20;
 				break;
 			case 1: // EAST
-				calculatedX = ClientWindow.WIDTH / 20;
-				calculatedY = ClientWindow.HEIGHT / 2 - (SeatButtonView.HEIGHT / 2);
+				calculatedX = ClientWindow.WIDTH - (SeatButtonView.WIDTH + ClientWindow.WIDTH / 20);
+				calculatedY = ClientWindow.HEIGHT / 2 - (SeatButtonView.HEIGHT / 2);				
 				break;
 			case 2: // SOUTH
 				calculatedX = ClientWindow.WIDTH / 2 - (SeatButtonView.WIDTH / 2);
 				calculatedY = ClientWindow.HEIGHT - (SeatButtonView.HEIGHT + ClientWindow.HEIGHT / 20);				
 				break;
 			case 3: // WEST
-				calculatedX = ClientWindow.WIDTH - (SeatButtonView.WIDTH + ClientWindow.WIDTH / 20);
+				calculatedX = ClientWindow.WIDTH / 20;
 				calculatedY = ClientWindow.HEIGHT / 2 - (SeatButtonView.HEIGHT / 2);				
 				break;
 		}
 		return new Point(calculatedX, calculatedY);
 	}
 
-	public static int getPlayerNameX(byte i) {
-		
-		return 0;
+	public static Point getPlayerNameOrigin(byte seat_id) {
+		int calculatedX=-1000, calculatedY=-1000;
+		switch(seat_id) {
+		case 0: // NORTH
+			// centered, under the cards plus a 5% of window height
+			// x = window.half_width - half_
+			calculatedX = ClientWindow.WIDTH / 2 - (SeatButtonView.WIDTH / 2);
+			calculatedY = ClientWindow.HEIGHT / 18;
+			break;
+		case 1: // EAST
+			calculatedX = ClientWindow.WIDTH - (SeatButtonView.WIDTH + ClientWindow.WIDTH / 18);
+			calculatedY = ClientWindow.HEIGHT / 2 - (SeatButtonView.HEIGHT / 2);				
+			break;
+		case 2: // SOUTH
+			calculatedX = ClientWindow.WIDTH / 2 - (SeatButtonView.WIDTH / 2);
+			calculatedY = ClientWindow.HEIGHT - (SeatButtonView.HEIGHT + ClientWindow.HEIGHT / 18);				
+			break;
+		case 3: // WEST
+			calculatedX = ClientWindow.WIDTH / 18;
+			calculatedY = ClientWindow.HEIGHT / 2 - (SeatButtonView.HEIGHT / 2);				
+			break;
+		}
+		return new Point(calculatedX, calculatedY);		
 	}
-
-	public static int getPlayerNameY(byte i) {
-		
-		return 0;
-	}
+	
 
 	public static byte seatRequestWasClicked(int x, int y) {
 		for(byte i=0; i<Language.GameDefinitions.MAX_CLIENTS; i++) {

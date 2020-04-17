@@ -1,186 +1,161 @@
 package roymcclure.juegos.mus.common.logic;
 
 import java.io.Serializable;
+import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.*;
 
 /*
  * 
- * State of game data not related to connection.
+ * State of game data unrelated to connection.
  * 
  */
 
 public class TableState implements Serializable {
 
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = 1L;
+
 	
-	private byte 
-	estado_partida,
-	id_ronda, tipo_ronda,
-	piedras_norte, piedras_este, piedras_sur, piedras_oeste,
-	juegos_nortesur, juegos_esteoeste, vacas_nortesur, vacas_esteoeste, 
-	id_jugador_que_le_toca_hablar, piedras_envidadas_ronda_actual;
+	private PlayerState[] clients;
 
-
-
-	private byte[][] cartas;
-
-	// this ids correspond to the seats.
-	//private String[] player_ids;
-	public String[] player_ids;	
+	// domain specific data
+	private byte 	piedras_norte_sur = 0, piedras_oeste_este = 0, 
+					juegos_norte_sur = 0, juegos_oeste_este = 0,
+					vacas_norte_sur = 0, vacas_oeste_este = 0,
+					jugador_debe_hablar = -1,
+					piedras_envidadas_ronda_actual = 0,
+					id_ronda = 0,
+					tipo_ronda = 0;
 	
 	public TableState() {
+		clients = new PlayerState[MAX_CLIENTS];
+		for (int i=0; i < MAX_CLIENTS; i++) {
+			clients[i] = new PlayerState();
+		}
 		
-		cartas = new byte[Language.GameDefinitions.MAX_CLIENTS][Language.GameDefinitions.CARDS_PER_HAND];
 		
 	}
-	
-	public String getPlayerId_By_Seat(byte seat_id) {
-		return player_ids[seat_id];
-	}
-	
-	public void setPlayerId_By_Seat(byte seat_id, String id) {
-		player_ids[seat_id] = id;
-	}
-	
 
-	public byte getEstado_partida() {
-		return estado_partida;
+	public PlayerState getClient(int i) {
+		return clients[i];
 	}
 
-
-	public void setEstado_partida(byte estado_partida) {
-		this.estado_partida = estado_partida;
+	public byte getPiedras_norte_sur() {
+		return piedras_norte_sur;
 	}
 
-
-	public byte getId_ronda() {
-		return id_ronda;
+	public byte getPiedras_oeste_este() {
+		return piedras_oeste_este;
 	}
 
-
-	public void setId_ronda(byte id_ronda) {
-		this.id_ronda = id_ronda;
+	public byte getJuegos_norte_sur() {
+		return juegos_norte_sur;
 	}
 
-
-	public byte getTipo_ronda() {
-		return tipo_ronda;
+	public byte getJuegos_oeste_este() {
+		return juegos_oeste_este;
 	}
 
-
-	public void setTipo_ronda(byte tipo_ronda) {
-		this.tipo_ronda = tipo_ronda;
+	public byte getVacas_norte_sur() {
+		return vacas_norte_sur;
 	}
 
-
-	public byte getPiedras_norte() {
-		return piedras_norte;
+	public byte getVacas_oeste_este() {
+		return vacas_oeste_este;
 	}
 
-
-	public void setPiedras_norte(byte piedras_norte) {
-		this.piedras_norte = piedras_norte;
+	public byte getJugador_debe_hablar() {
+		return jugador_debe_hablar;
 	}
-
-
-	public byte getPiedras_este() {
-		return piedras_este;
-	}
-
-
-	public void setPiedras_este(byte piedras_este) {
-		this.piedras_este = piedras_este;
-	}
-
-
-	public byte getPiedras_sur() {
-		return piedras_sur;
-	}
-
-
-	public void setPiedras_sur(byte piedras_sur) {
-		this.piedras_sur = piedras_sur;
-	}
-
-
-	public byte getPiedras_oeste() {
-		return piedras_oeste;
-	}
-
-
-	public void setPiedras_oeste(byte piedras_oeste) {
-		this.piedras_oeste = piedras_oeste;
-	}
-
-
-	public byte getJuegos_nortesur() {
-		return juegos_nortesur;
-	}
-
-
-	public void setJuegos_nortesur(byte juegos_nortesur) {
-		this.juegos_nortesur = juegos_nortesur;
-	}
-
-
-	public byte getJuegos_esteoeste() {
-		return juegos_esteoeste;
-	}
-
-
-	public void setJuegos_esteoeste(byte juegos_esteoeste) {
-		this.juegos_esteoeste = juegos_esteoeste;
-	}
-
-
-	public byte getVacas_nortesur() {
-		return vacas_nortesur;
-	}
-
-
-	public void setVacas_nortesur(byte vacas_nortesur) {
-		this.vacas_nortesur = vacas_nortesur;
-	}
-
-
-	public byte getVacas_esteoeste() {
-		return vacas_esteoeste;
-	}
-
-
-	public void setVacas_esteoeste(byte vacas_esteoeste) {
-		this.vacas_esteoeste = vacas_esteoeste;
-	}
-
-	public byte getCarta(byte id_player, byte pos_carta) {
-		return cartas[id_player][pos_carta];
-	}
-	
-	public void setCarta(byte id_player, byte pos_carta, byte id_carta) {
-		cartas[id_player][pos_carta] = id_carta;
-	}
-
-
-	public byte getId_jugador_que_le_toca_hablar() {
-		return id_jugador_que_le_toca_hablar;
-	}
-
-
-	public void setId_jugador_que_le_toca_hablar(byte id_jugador_que_le_toca_hablar) {
-		this.id_jugador_que_le_toca_hablar = id_jugador_que_le_toca_hablar;
-	}
-
 
 	public byte getPiedras_envidadas_ronda_actual() {
 		return piedras_envidadas_ronda_actual;
 	}
 
+	public byte getId_ronda() {
+		return id_ronda;
+	}
 
-	public void setPiedras_envidadas_ronda_actual(byte piedras_envidadas_ronda_actual) {
+	public byte getTipo_ronda() {
+		return tipo_ronda;
+	}
+	
+	public boolean isSeatOccupied(int i) {
+		return !clients[i].getID().equals("");
+		
+	}
+	
+	public TableState(PlayerState[] clients, byte piedras_norte_sur, byte piedras_oeste_este, byte juegos_norte_sur,
+			byte juegos_oeste_este, byte vacas_norte_sur, byte vacas_oeste_este, byte jugador_debe_hablar,
+			byte piedras_envidadas_ronda_actual, byte id_ronda, byte tipo_ronda) {
+		super();
+		this.clients = new PlayerState[MAX_CLIENTS];		
+		for (int i = 0; i < MAX_CLIENTS; i++) {
+
+			this.clients[i] = new PlayerState();
+			this.clients[i].setID(clients[i].getID());
+		}
+		this.piedras_norte_sur = piedras_norte_sur;
+		this.piedras_oeste_este = piedras_oeste_este;
+		this.juegos_norte_sur = juegos_norte_sur;
+		this.juegos_oeste_este = juegos_oeste_este;
+		this.vacas_norte_sur = vacas_norte_sur;
+		this.vacas_oeste_este = vacas_oeste_este;
+		this.jugador_debe_hablar = jugador_debe_hablar;
 		this.piedras_envidadas_ronda_actual = piedras_envidadas_ronda_actual;
+		this.id_ronda = id_ronda;
+		this.tipo_ronda = tipo_ronda;
+	}
+
+	public boolean isSeatEmpty(byte seat_id) {
+		return clients[seat_id].getID().equals("");
+	}
+	
+	public void clearSeat(int seat_id) {
+		if (seat_id >=0 && seat_id < MAX_CLIENTS)
+			clients[seat_id].setID("");
+	}
+	
+	public int getSeatOf(String playerID) {
+		
+		for (int i = 0; i < MAX_CLIENTS; i++) {
+			if (clients[i].getID().equals(playerID)) {
+				return i;
+			}
+		}
+		return -1;
+	}
+	
+	public boolean takeAseat(byte seat_id, String playerID) {
+		// if requested seat is empty
+		if (!isSeatOccupied(seat_id)) {
+			if (!isSeated(playerID)) {
+				getClient(seat_id).setID(playerID);
+				System.out.println("Player id "+ playerID + " took seat in " + seat_id);
+				return true;
+			}
+		}
+		return false;
 	}	
+
+	private boolean isSeated(String playerID) {
+		// buscamos player_ID de ese thread en tableState y recuperamos el indice de su sitio
+		
+		int seat_id = getSeatOf(playerID);
+		return seat_id != -1;
+	}
+
+	public void printContent() {
+		for (int i = 0; i < MAX_CLIENTS; i++) {
+			System.out.println("In seat_id " + i + " i have " + clients[i].getID());
+		}
+		
+	}
 	
-	
+	@Override
+	public TableState clone() {
+		return new TableState(clients, piedras_norte_sur, piedras_oeste_este, 
+				juegos_norte_sur, juegos_oeste_este,
+				vacas_norte_sur, vacas_oeste_este,jugador_debe_hablar, piedras_envidadas_ronda_actual,
+				id_ronda,tipo_ronda);
+	}
+
 }
