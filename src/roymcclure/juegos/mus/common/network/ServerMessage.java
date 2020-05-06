@@ -53,13 +53,12 @@ public class ServerMessage implements Serializable {
 	}
 
 	
-
-
-	public static ServerMessage forgeDataPacket(GameState gs, TableState tableState, byte player_id) {
+	// why does a message sent to the player require a player id?
+	public static ServerMessage forgeDataPacket(GameState gs, TableState tableState) {
 		ServerMessage sm = new ServerMessage();
 		sm.setGameState(gs.clone());
 		// TODO: must not send card values for all players unless its end of round
-		tableState.printContent();
+		// tableState.printContent();
 		sm.setTableState(tableState.clone());
 		return sm;
 	}

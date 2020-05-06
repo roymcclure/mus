@@ -1,41 +1,32 @@
 package roymcclure.juegos.mus.cliente.logic;
 
-import java.awt.Canvas;
-import java.awt.Color;
-import java.awt.Graphics;
-import java.awt.image.BufferStrategy;
-
-
-import roymcclure.juegos.mus.cliente.UI.MusMouseListener;
-import roymcclure.juegos.mus.cliente.logic.jobs.ControllerJobsQueue;
+import roymcclure.juegos.mus.cliente.UI.GameCanvas;
+import roymcclure.juegos.mus.common.logic.jobs.ControllerJobsQueue;
 
 /*
  * mostly from https://www.youtube.com/watch?v=1gir2R7G9ws
+ * - removed canvas to UI.
+ * 
  */
 
-public class Game extends Canvas implements Runnable {
-
+public class Game implements Runnable {
 	
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 4686288067523908021L;
-	
-	public static final int WIDTH = 1024, HEIGHT = 1024;
+	public static final int WIDTH = 640, HEIGHT = 480;
 	private Thread thread;
-	private boolean running = false;
+	public static boolean running = false;
 	
 	private Handler handler;
-	
+	private GameCanvas gameCanvas;
 
 	
-	public Game(ClientGameState clientGameState, ControllerJobsQueue jobs) {		
+	public Game(ClientGameState clientGameState, ControllerJobsQueue jobs, GameCanvas gameCanvas) {		
 		handler = new Handler();
-		this.addMouseListener(new MusMouseListener(jobs));
-		this.setSize(WIDTH, HEIGHT);
+		this.gameCanvas = gameCanvas;
+
 	}
 	
 	public synchronized void start() {
+		System.out.println("Game: thread starting...");
 		thread = new Thread(this);
 		thread.start();
 		running = true;
@@ -43,8 +34,11 @@ public class Game extends Canvas implements Runnable {
 
 	public synchronized void stop() {
 		try {
-			thread.join();
+			System.out.println("[GAME] stop() called");
 			running = false;
+			System.out.println("[GAME] joining thread...");
+			thread.join();
+			System.out.println("joined.");
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
@@ -53,11 +47,12 @@ public class Game extends Canvas implements Runnable {
 	
 	@Override
 	public void run() {
+		running = true;
 		long lastTime = System.nanoTime();
 		double amountOfTicks = 60.0f;
 		double nsPerTick = 1000000000 / amountOfTicks;
 		double delta = 0;
-		long timer = System.currentTimeMillis();
+		//long timer = System.currentTimeMillis();
 		//int frames = 0;
 		
 		while (running) {
@@ -84,15 +79,13 @@ public class Game extends Canvas implements Runnable {
 				e.printStackTrace();
 			}
 			
-			if (System.currentTimeMillis() - timer > 1000) {
+			// prints FPS every second
+			/*if (System.currentTimeMillis() - timer > 1000) {
 				timer += 1000;
-				//System.out.println("FPS:" + frames);
+				System.out.println("FPS:" + frames);
 				//frames = 0;
-			}
-			
-			
+			}*/			
 		}
-		stop();
 
 	}
 	
@@ -101,19 +94,7 @@ public class Game extends Canvas implements Runnable {
 	}
 	
 	private void render() {
-		BufferStrategy bs = this.getBufferStrategy();
-		if (bs == null) {
-			this.createBufferStrategy(3);
-			return;
-		}
-		Graphics g = bs.getDrawGraphics();
-		
-		g.setColor(Color.decode("#1E7E1E"));
-		
-		g.fillRect(0, 0, WIDTH, HEIGHT);
-		handler.render(g);
-		g.dispose();
-		bs.show();
+		gameCanvas.render(handler);
 	}
 
 	public Handler getHandler() {

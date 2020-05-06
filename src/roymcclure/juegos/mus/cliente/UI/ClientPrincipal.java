@@ -1,7 +1,5 @@
 package roymcclure.juegos.mus.cliente.UI;
 
-import roymcclure.juegos.mus.cliente.network.ClientConnection;
-
 public class ClientPrincipal {
 
 	public static void main(String[] args) {

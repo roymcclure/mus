@@ -27,6 +27,9 @@ public class ClientGameState {
 		System.out.println("[ClientGameState] printing table content");
 		tableState.printContent();
 		gameState=sm.getGameState();
+		
+		
+		
 	}
 	
 	public static String getPlayerName() {

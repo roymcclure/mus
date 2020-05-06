@@ -1,117 +1,101 @@
 package roymcclure.juegos.mus.server.network;
 
-import static roymcclure.juegos.mus.common.logic.Language.PlayerActions.*;
-import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.*;
+import static roymcclure.juegos.mus.common.logic.Language.ConnectionState.*;
+import static roymcclure.juegos.mus.common.logic.Language.NodeState.*;
+
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.net.SocketException;
 
-import roymcclure.juegos.mus.common.logic.GameState;
-import roymcclure.juegos.mus.common.logic.TableState;
-import roymcclure.juegos.mus.common.network.ClientMessage;
-import roymcclure.juegos.mus.common.network.ServerMessage;
+import roymcclure.juegos.mus.common.logic.jobs.*;
+import roymcclure.juegos.mus.common.logic.*;
+import roymcclure.juegos.mus.common.network.*;
 import roymcclure.juegos.mus.server.logic.SrvMus;
 
 /**
  * 
  * @author Roy
  *
- *	Esta clase es un hilo que funciona como interlocutor
- *	entre el cliente y el servidor. Redirige los mensajes 
- *	del servidor a los clientes y viceversa. En teoría
- *	su estado está sincronizado con el del cliente, de tal
- *	modo que actúan como en un diálogo, donde la respuesta
- *  del cliente que altere el estado del juego es reenviada
- *  al servidor y este la comunica al resto de jugadores,
- *  y los cálculos del servidor que alteren el estado de juego
- *  son reenviados a todos los clientes.
+ *	Esta clase lee del cliente, actualiza si es necesario el estado del servidor
+ *	y responde al cliente (y posiblemente al resto de clientes)
+ *  con el estado del servidor para que puedan actualizar su UI.
+ *  Asimismo abre un thread de escritura al cliente para poder 
+ *  notificarle en ausencia de una petición del cliente, e.g. para
+ *  poder decirle a un cliente que está esperando sentado a que
+ *  empiece la partida si otros jugadores se han sentado a la mesa,
+ *  o a un jugador que espera su turno para hablar las acciones
+ *  de otro jugador que hablaba antes que él.
+ *  No hay casos en los que el cliente comunique algo al servidor
+ *  y no espere respuesta, puesto que todo el estado depende del servidor
+ *  que es autoritativo.
  *  
  */
 public class AtenderCliente extends Thread {
 	
 	private Socket socket;
+	private Thread readThread;
+	private Thread writeThread;
+	private ConnectionJobsQueue connectionJobsQueue;
+	private ControllerJobsQueue controllerJobsQueue;
+	
 	byte thread_id=-1;
 	private boolean connected = false;
 	GameState gs;
 	TableState ts;
 	SrvMus server;
-	
-	// data for sending / receiving
-	private ObjectInputStream objIn = null;
-	private ObjectOutputStream objOut =  null;	
-	
-	private ClientMessage cm;
-
 
 	
-	public AtenderCliente (Socket s, GameState gs, TableState ts, byte thread_id, SrvMus server) {
+	public AtenderCliente(Socket s, GameState gs, TableState ts, byte thread_id, SrvMus server, ControllerJobsQueue controllerJobsQueue, ConnectionJobsQueue connectionJobsQueue) {
 		this.socket = s;
+		this.thread_id = thread_id;		
+		this.connectionJobsQueue = connectionJobsQueue;
+		this.controllerJobsQueue = controllerJobsQueue;
+		
+		ConnectionThread wct = new ConnectionThread(WRITE, SERVER, this.connectionJobsQueue, this.controllerJobsQueue, thread_id);
+		//System.out.println("Server created write connection thread");		
+		wct.setSocket(this.socket);
+		//System.out.println("Server assigned socket to write connection thread");		
+		writeThread = new Thread(wct);
+		writeThread.setName("ConnectionThread-Write-Client"+thread_id);
+		
+		ConnectionThread rct = new ConnectionThread(READ, SERVER, this.connectionJobsQueue, this.controllerJobsQueue, thread_id);
+		//System.out.println("Server created read connection thread");
+		rct.setSocket(this.socket);
+		//System.out.println("Server assigned socket to read connection thread");		
+		readThread = new Thread(rct);
+		readThread.setName("ConnectionThread-Read-Client"+thread_id);
+		
+		
 		this.gs = gs;
 		this.ts = ts;
 		connected = true;
-		this.thread_id = thread_id;
 		this.server = server;
 	}
 	
 	public void run() {
-		// el socket representa mi conexión con el cliente.
-		// tengo que enviarle datos o tengo que recibir de él?
-		// esto depende del estado de la partida,
-		// por lo que antes de leer o escribir tendré que examinar el estado de la partida
-		// puede haber casos en los que el cliente se deba quedar esperando hasta que su hilo
-		// le diga que ya puede hablar, por ejemplo cuando el cliente se ha sentado a la mesa
-		// 
-		while(connected) {
-			try {
-
-				cm = this.receive();
-				System.out.print("thread_id ["+thread_id+"] sent a message.\n");
-				System.out.println(cm);
-				updateGameStateWith(cm, thread_id);
-				send(ServerMessage.forgeDataPacket(gs, ts, thread_id));
-				System.out.println("Enviada");
-
-			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
-				// received object's class was not found
-			} catch (SocketException se) {
-				connected = false;
-				System.out.println("Client disconnected.Calling releaseThread("+thread_id+")");
-				server.releaseThread(thread_id);
-				synchronized(gs) {
-					ts.clearSeat(ts.getSeatOf(gs.getPlayerID(thread_id)));
-					gs.setPlayerID(NO_PLAYER, thread_id);
-					
-				}
-				// se.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
-				// error reading/writing
-			} 
-		}
-		// tell server that user disconnected
-		// and to release seat_id
-		server.releaseThread(thread_id);
 		
+		readThread.start();
+		writeThread.start();
+		
+		try {
+			//System.out.println("[AtenderCliente] de thread_id: " + thread_id + " se queda esperando a que finalicen sus threads de lectura y escritura...");
+			readThread.join();
+			writeThread.join();
+			//System.out.println("[AtenderCliente] de thread_id: " + thread_id + " threads de lectura y escritura: succesfully joined.");			
+		} catch (InterruptedException ie) {
+			server.log("Thread was interrupted while waiting for its read & write threads to join.");
+			readThread.interrupt();
+			writeThread.interrupt();			
+		} finally {
+			// tell server that user disconnected
+			// and to release seat_id*/			
+			server.releaseThread(thread_id);
+		}
 
 	}
-	
-	public ClientMessage receive() throws IOException, ClassNotFoundException {
-		if (objIn==null)
-			objIn = new ObjectInputStream(socket.getInputStream());
-		ClientMessage cm = (ClientMessage) objIn.readObject();
-		return cm;		
-	}
 
-	public void send(ServerMessage sm) throws IOException {
-		if (objOut==null)
-			objOut = new ObjectOutputStream (socket.getOutputStream());
-		objOut.writeObject(sm);		
-	}
-	
 	public boolean isConnected() {
 		return connected;
 	}
@@ -126,27 +110,18 @@ public class AtenderCliente extends Thread {
 		}
 
 	}
-	
-	public synchronized void updateGameStateWith(ClientMessage cm, byte thread_id) {
-		// si cliente solicita información del mundo, realmente no hacemos gran cosa.
-		if (cm.getAction() == REQUEST_GAME_STATE) {
-			// player can pass their name here
-			String playerID = cm.getInfo();
-			synchronized(gs) {
-				gs.setPlayerID(playerID, thread_id);
-			}
-			System.out.println("SERVER: player " + playerID.toString() + " connected.");			
-		}
-		
-		if (cm.getAction() == REQUEST_SEAT) {
-			// we try to seat the player in the requested seat
-			// we assume the player knows the game state so it doesnt really need
-			// a refresh at this point
-			System.out.println("PLAYER " + gs.getPlayerID(thread_id) + " requested the SEAT " + cm.getQuantity());
-			byte requested_seat = cm.getQuantity();
-			ts.takeAseat(requested_seat, gs.getPlayerID(thread_id));
-		}
 
+	public void notifyStateChange() {
+		// game state has changed, so we should update the client
+		/*
+		try {
+			send(ServerMessage.forgeDataPacket(gs, ts));
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		*/
+		
 	}	
 
 

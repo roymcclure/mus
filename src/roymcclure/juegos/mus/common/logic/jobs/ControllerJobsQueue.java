@@ -1,4 +1,4 @@
-package roymcclure.juegos.mus.cliente.logic.jobs;
+package roymcclure.juegos.mus.common.logic.jobs;
 
 import java.util.ArrayList;
 
@@ -17,7 +17,8 @@ public class ControllerJobsQueue {
 		return j;
 	}
 	
-	public synchronized void postControllerJob(Job j) {
+	public synchronized void postRequestJob(Job j) {
+		//System.out.println("A JOB was posted in the controller jobs queue.");
 		controllerJobs.add(j);
 	}
 	

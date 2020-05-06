@@ -1,5 +1,7 @@
 package roymcclure.juegos.mus.cliente.logic.jobs;
 
+import roymcclure.juegos.mus.common.logic.jobs.Job;
+
 public class InputReceivedJob extends Job {
 
 	private int x, y;

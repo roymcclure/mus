@@ -20,8 +20,15 @@ public class ServerWindow extends JFrame {
 	private static final long serialVersionUID = 3021988155527724728L;
 
 	private boolean running = false;
+	String lastCommand = "";
 	
+	public void setServer(SrvMus server) {
+		this.server = server;
+	}
+
 	private SrvMus server;
+	private JTextArea log;
+	
 	
 	public ServerWindow() {
 		this.setSize(320,320);
@@ -33,7 +40,7 @@ public class ServerWindow extends JFrame {
 		this.getContentPane().add(txtCmd, BorderLayout.NORTH);
 		this.setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
 		
-		JTextArea log = new JTextArea("");
+		log = new JTextArea("");
 		this.getContentPane().add(log, BorderLayout.CENTER);	
 		
 		DefaultCaret caret = (DefaultCaret)log.getCaret();
@@ -48,9 +55,8 @@ public class ServerWindow extends JFrame {
 		JButton btnRun = new JButton("Start");
 		this.getContentPane().add(btnRun, BorderLayout.SOUTH);
 		
-		btnRun.addActionListener(new BtnListener(this, log, btnRun,txtCmd));
-		
-		this.setVisible(true);
+		btnRun.addActionListener(new BtnListener(this, log, btnRun,txtCmd));		
+
 		txtCmd.addKeyListener(new KeyListener() {
 			
 			@Override
@@ -67,17 +73,18 @@ public class ServerWindow extends JFrame {
 			
 			@Override
 			public void keyPressed(KeyEvent e) {
-				// TODO Auto-generated method stub
-				if (e.getKeyCode()==10) {
+				if (e.getKeyCode()==10) { // enter
+					lastCommand = txtCmd.getText();
 					server.runCommand(txtCmd.getText(), log);
 					txtCmd.setText("");
 				}
-				
+				if (e.getKeyCode()==38) { // up
+					txtCmd.setText(lastCommand);					
+				}
 
 			}
-		});
-		
-		server = new SrvMus(log);
+		});		
+
 		JFrame frame = this;
 		this.addWindowListener(new java.awt.event.WindowAdapter() {
 			@Override
@@ -103,12 +110,12 @@ public class ServerWindow extends JFrame {
 	
 	class BtnListener implements ActionListener {
 		
-		JFrame srvWindow;
+		ServerWindow srvWindow;
 		JTextArea log;
 		JButton btnRun;
 		JTextField txtPort;
 		
-		public BtnListener(JFrame srvWindow_, JTextArea txtArea_, JButton jbtn, JTextField txtPort_) {
+		public BtnListener(ServerWindow srvWindow_, JTextArea txtArea_, JButton jbtn, JTextField txtPort_) {
 			srvWindow = srvWindow_;
 			log = txtArea_;
 			btnRun = jbtn;
@@ -128,7 +135,7 @@ public class ServerWindow extends JFrame {
 					running = false;
 					log.append("Server stopped.\n");						
 					btnRun.setText("Start server");
-					server = new SrvMus(log);
+					server = new SrvMus(srvWindow);
 				} catch (IOException e) {
 					log.append("Error stopping server.\n");
 				} catch (InterruptedException e) {
@@ -150,6 +157,11 @@ public class ServerWindow extends JFrame {
 			
 		}
 		
+		
+	}
+
+	public void log(String msg) {
+		this.log.append(msg);
 		
 	}
 

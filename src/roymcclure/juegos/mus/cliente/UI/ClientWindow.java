@@ -1,30 +1,15 @@
 package roymcclure.juegos.mus.cliente.UI;
 
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Dialog;
-import java.awt.Dimension;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Toolkit;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-
-import javax.swing.JButton;
-import javax.swing.JDialog;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JTextField;
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
 
 import roymcclure.juegos.mus.cliente.logic.ClientGameState;
-import roymcclure.juegos.mus.cliente.logic.Controller;
+import roymcclure.juegos.mus.cliente.logic.ClientController;
 import roymcclure.juegos.mus.cliente.logic.Game;
-import roymcclure.juegos.mus.cliente.logic.jobs.*;
+import roymcclure.juegos.mus.common.logic.jobs.*;
 import roymcclure.juegos.mus.cliente.network.ClientConnection;
 import roymcclure.juegos.mus.cliente.network.GetNetworkAddress;
-import roymcclure.juegos.mus.common.logic.Language;
 
 public class ClientWindow extends JFrame {
 
@@ -34,33 +19,63 @@ public class ClientWindow extends JFrame {
 	private static final long serialVersionUID = 6374380056738883771L;
 
 	public static final int WIDTH = 640, HEIGHT = 480;
-	
+
 	JDialog connectionDialog;
-	ClientConnection connection;
-	public static ClientGameState clientGameState; 
-	private Controller controller;
-	
+	public static ClientGameState clientGameState;
+	private GameCanvas gameCanvas;
+
 	public ClientWindow(String title) {
 		// init client game state
 		clientGameState = new ClientGameState();
 		// job queues
 		ControllerJobsQueue controllerJobs = new ControllerJobsQueue();
 		ConnectionJobsQueue connectionJobs = new ConnectionJobsQueue();
-		// game AKA UI thread
-		Game game = new Game(clientGameState, controllerJobs);
+		// UI
+		gameCanvas = new GameCanvas(controllerJobs);
+		// logic
+		Game game = new Game(clientGameState, controllerJobs, gameCanvas);
+
+		// Controller Thread
+		ClientController controller = new ClientController(game.getHandler(), controllerJobs, connectionJobs);
+
 		// connection & controller threads
-		controller = new Controller(game.getHandler(), controllerJobs, connectionJobs);
-		connection = new ClientConnection(connectionJobs, controllerJobs);
+		ClientConnection.setConnectionJobsQueue(connectionJobs);
+		ClientConnection.setControllerJobsQueue(controllerJobs);
 		
 		setupFrame("MUS -- client", game);
 		createConnectionDialog();
 		showConnectionDialog();
-		game.start();
 		
-		Thread t = new Thread(controller);
-		t.start();
-	}
 	
+		controller.start();		
+		game.start();
+
+		this.addWindowListener(new java.awt.event.WindowAdapter() {
+			@Override
+			public void windowClosing(java.awt.event.WindowEvent windowEvent) {
+				if (JOptionPane.showConfirmDialog(gameCanvas, "Are you sure you want to close this window?", "Close Window?",JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE) == JOptionPane.YES_OPTION){
+					try {
+						System.out.println("Interrupting connection threads...");
+						ClientConnection.stop();
+						System.out.println("Calling game.stop()...");
+						game.stop();
+						System.out.println("Calling controller.interrupt()...");
+						controller.interrupt();
+						System.out.println("Calling controller.join()...");						
+						controller.join();
+
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}		
+					System.exit(0);
+
+		        }
+		    }
+		});
+
+	}
+
 	private void setupFrame(String title, Game game) {
 		Dimension d = new Dimension(WIDTH,HEIGHT);
 		this.setTitle(title);
@@ -71,17 +86,17 @@ public class ClientWindow extends JFrame {
 		this.setLayout(new BorderLayout());
 		this.getContentPane().setPreferredSize(d);
 		this.getContentPane().setBackground(Color.decode("#1E7E1E"));
-		
+
 		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		this.setResizable(false);
 		Dimension desktop = Toolkit.getDefaultToolkit().getScreenSize();
 		this.setLocation((desktop.width - WIDTH) / 2,(desktop.height - HEIGHT) / 2);
 		this.setVisible(true);		
-		this.add(game);
+		this.add(gameCanvas);
 		this.pack();
 
 	}
-	
+
 	private void createConnectionDialog() {
 		connectionDialog = new JDialog(this, Dialog.ModalityType.DOCUMENT_MODAL);
 		connectionDialog.addWindowListener(new WindowAdapter() {
@@ -92,7 +107,7 @@ public class ClientWindow extends JFrame {
 		Dimension d = new Dimension((int)(WIDTH * 0.50), (int)(HEIGHT * 0.20));
 		connectionDialog.setSize(d);
 		//connectionDialog.setDefaultCloseOperation(0);
-		
+
 		connectionDialog.setResizable(false);
 		connectionDialog.setLocationRelativeTo(this);
 		connectionDialog.setLayout(new GridBagLayout());
@@ -110,22 +125,22 @@ public class ClientWindow extends JFrame {
 			public void actionPerformed(ActionEvent e) {
 				if (isValidated(txtUrl.getText(),txtPort.getText(),txtName.getText())) {
 					//tell the connection object to try to connect
-					int error = connection.connect(txtUrl.getText(), Integer.parseInt(txtPort.getText()));
-
-					if (error == 0) {
+					try {
+						ClientConnection.connect(txtUrl.getText(), Integer.parseInt(txtPort.getText()));
 						hideConnectionDialog();
+						Thread connection = new Thread(new ClientConnection());
 						connection.start();
-						
+						// forge player ID
 						ClientGameState.setPlayerID(txtName.getText()+":"+GetNetworkAddress.GetAddress("mac").replace("-", ""));
-						Controller.postInitialRequest();
-					} else if (error==1 || error == 2) {
-						b.setText("Unable to connect. Try again...");
-					} else if (error == 3) {
-						b.setText("Error transfering data. Try again...");
+						// tell the Controller to request acknowledgement and game state
+						ClientController.postInitialRequest();
+					} catch (Exception exception) {
+						exception.printStackTrace();
 					}
+
 				}
 			}
-			
+
 		});
 		connectionDialog.getContentPane().add(lblUrl, cons(0,0,1,1,0,0, GridBagConstraints.HORIZONTAL));
 		connectionDialog.getContentPane().add(txtUrl, cons(1,0,1,1,1.0f,1.0f,2));
@@ -134,9 +149,9 @@ public class ClientWindow extends JFrame {
 		connectionDialog.getContentPane().add(lblName, cons(0,2,1,1,0,0, GridBagConstraints.HORIZONTAL));
 		connectionDialog.getContentPane().add(txtName, cons(1,2,1,1,1.0f,1.0f,2));		
 		connectionDialog.getContentPane().add(b, cons(0,3,2,1,1.0f,1.0f,2));
-		
+
 	}
-	
+
 	protected boolean isValidated(String text, String text2, String text3) {
 		// TODO 
 		return true;
@@ -145,11 +160,11 @@ public class ClientWindow extends JFrame {
 	public void showConnectionDialog() {
 		connectionDialog.setVisible(true);
 	}
-	
+
 	public void hideConnectionDialog() {
 		connectionDialog.setVisible(false);
 	}
-	
+
 	public GridBagConstraints cons(int x, int y, int width, int height, float weightx, float weighty, int fill) {
 		GridBagConstraints gb = new GridBagConstraints();
 		gb.gridx = x;
@@ -161,5 +176,5 @@ public class ClientWindow extends JFrame {
 		gb.fill= fill;
 		return gb;
 	}
-	
+
 }

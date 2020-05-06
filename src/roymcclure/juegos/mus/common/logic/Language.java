@@ -11,7 +11,8 @@ public class Language {
 								ORDAGO = 3,
 								HANDSHAKE = 9,
 								REQUEST_GAME_STATE = 10,
-								REQUEST_SEAT = 11;
+								REQUEST_SEAT = 11,
+								CLOSE_CONNECTION = 20;
 	
 	}
 	
@@ -33,14 +34,21 @@ public class Language {
 	
 	// connection state
 	public class ConnectionState {
-		public static final byte READ_FROM_CLIENT = 0,
-				WRITE_TO_CLIENT = 1,
-				WAIT_EXTERNAL = 2;
+		public static final byte READ = 0,
+				WRITE = 1,
+				WRITE_READ = 2;
 	}
+	
+	public class NodeState {
+		public static final byte 	SERVER=0,
+									CLIENT = 1;
+	}
+	
 	
 	public class ServerReply {
 			public static final byte OK = 0,
-									ERROR = 1;
+									ERROR = 1,
+									ACTION_DENIED = 2;
 	}
 
 	// TODO: these should be server-defined

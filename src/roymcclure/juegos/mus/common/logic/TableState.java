@@ -11,9 +11,12 @@ import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.*;
 
 public class TableState implements Serializable {
 
-	private static final long serialVersionUID = 1L;
-
 	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -1307767440829066871L;
+
 	private PlayerState[] clients;
 
 	// domain specific data

@@ -7,7 +7,6 @@ import java.util.LinkedList;
 
 import roymcclure.juegos.mus.cliente.UI.SeatButtonView;
 import roymcclure.juegos.mus.cliente.UI.UIParameters;
-import roymcclure.juegos.mus.common.logic.PlayerState;
 
 import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.*;
 
@@ -45,10 +44,10 @@ public class Handler {
 		objects.remove(go);
 	}
 	
-	public void updateView(ClientGameState gs) {
+	public void updateView() {
 		objects.clear();
 		// player names
-		updateNamesView(gs);
+		updateNamesView();
 		// stones
 		// games
 		// cows
@@ -73,7 +72,7 @@ public class Handler {
 		
 	}
 	
-	private static void updateNamesView(ClientGameState gs) {
+	private static void updateNamesView() {
 		// if i am not seated, draw each name on its place
 		if (ClientGameState.table().getSeatOf(ClientGameState.getPlayerID()) <0) {
 			for (byte i = 0; i < MAX_CLIENTS; i++) {
