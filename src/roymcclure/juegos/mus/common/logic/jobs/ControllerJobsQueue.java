@@ -14,6 +14,7 @@ public class ControllerJobsQueue {
 	public synchronized Job getControllerJob() {		
 		Job j = controllerJobs.get(0);
 		controllerJobs.remove(0);
+		
 		return j;
 	}
 	

@@ -11,13 +11,13 @@ import roymcclure.juegos.mus.common.logic.TableState;
 public class ClientGameState {
 
 	private static String playerID;
-	// this index indicates where I am seated
-	// according to 0 = north, 1 = east, etc...
-
 	private static TableState tableState;
-	private static GameState gameState;
-	
+	private static GameState gameState;	
 
+
+	public static GameState getGameState() {
+		return gameState;
+	}
 
 	public ClientGameState() {}
 	

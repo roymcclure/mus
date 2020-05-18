@@ -28,7 +28,7 @@ public class ServerWindow extends JFrame {
 
 	private SrvMus server;
 	private JTextArea log;
-	
+	private JButton btnRun;
 	
 	public ServerWindow() {
 		this.setSize(320,320);
@@ -52,7 +52,7 @@ public class ServerWindow extends JFrame {
 		this.getContentPane().add(scroll);
 		
 		
-		JButton btnRun = new JButton("Start");
+		btnRun = new JButton("Start");
 		this.getContentPane().add(btnRun, BorderLayout.SOUTH);
 		
 		btnRun.addActionListener(new BtnListener(this, log, btnRun,txtCmd));		
@@ -127,17 +127,17 @@ public class ServerWindow extends JFrame {
 			
 			if (running) {
 				try {
-					log.append("Stopping server...\n");
+					log("Stopping server...");
 					server.halt();
 					server.join();
 					server.interrupt();
 					System.out.println("stopping. thread state:"+server.getState());
 					running = false;
-					log.append("Server stopped.\n");						
+					log("Server stopped.");						
 					btnRun.setText("Start server");
 					server = new SrvMus(srvWindow);
 				} catch (IOException e) {
-					log.append("Error stopping server.\n");
+					log("Error stopping server.");
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -147,10 +147,10 @@ public class ServerWindow extends JFrame {
 					System.out.println("starting. thread state:"+server.getState());
 					server.start();
 					running = true;						
-					log.append("Server started.\n");
+					log("Server started.");
 					btnRun.setText("Stop server");						
 				} catch (NumberFormatException e) {
-					log.append("Error starting server.\n");
+					log("Error starting server.");
 				}
 			}		
 			
@@ -161,7 +161,12 @@ public class ServerWindow extends JFrame {
 	}
 
 	public void log(String msg) {
-		this.log.append(msg);
+		this.log.append(msg + "\n");
+		
+	}
+
+	public void runOnStart() {
+		btnRun.doClick();
 		
 	}
 

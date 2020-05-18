@@ -7,6 +7,7 @@ import roymcclure.juegos.mus.common.logic.jobs.*;
 import roymcclure.juegos.mus.common.network.*;
 import static roymcclure.juegos.mus.common.logic.Language.ConnectionState.*;
 import static roymcclure.juegos.mus.common.logic.Language.NodeState.*;
+import static roymcclure.juegos.mus.common.logic.Language.PlayerActions.*;
 
 public class ClientConnection implements Runnable {
 
@@ -71,7 +72,14 @@ public class ClientConnection implements Runnable {
 	public static void stop() {
 		connected = false;
 		try {
-		_socket.close();
+			ClientMessage cm = new ClientMessage();
+			cm.setAction(CLOSE_CONNECTION);
+			ConnectionJob job = new ConnectionJob(cm);
+			synchronized(_connectionJobs) {
+				_connectionJobs.postConnectionJob(job);
+				_connectionJobs.notify();
+			}
+			_socket.close();
 		} catch (IOException ex) {
 			
 		}
@@ -79,6 +87,11 @@ public class ClientConnection implements Runnable {
 		System.out.println("[CLIENTE] Interrumpido thread Lectura");
 		threadEscritura.interrupt();
 		System.out.println("[CLIENTE] Interrumpido thread Escritura");		
+	}
+	
+	public static void abort() {
+		threadEscritura.interrupt();
+		threadLectura.interrupt();
 	}
 
 

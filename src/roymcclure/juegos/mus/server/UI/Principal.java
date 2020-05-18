@@ -17,9 +17,12 @@ public class Principal {
 				SrvMus server = new SrvMus(serverWindow);
 				serverWindow.setServer(server);
 				serverWindow.setVisible(true);
-				
-			}
-			
+				if(args.length >= 1) {
+					if(args[0].equals("--runOnStart")) {
+						serverWindow.runOnStart();
+					}
+				}
+			}			
 		});
 
 	}

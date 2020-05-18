@@ -1,1 +1,1 @@
-java -cp "%cd%\bin" roymcclure.juegos.mus.server.UI.Principal
+java -cp "%cd%\bin" roymcclure.juegos.mus.server.UI.Principal %1 %2 %3

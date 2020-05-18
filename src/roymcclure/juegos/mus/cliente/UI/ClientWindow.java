@@ -18,13 +18,28 @@ public class ClientWindow extends JFrame {
 	 */
 	private static final long serialVersionUID = 6374380056738883771L;
 
-	public static final int WIDTH = 640, HEIGHT = 480;
+	private static final String DEFAULT_PLAYER = "Player";
+	private static final String DEFAULT_IP = "127.0.0.1";
+	private static final String DEFAULT_PORT = "5678";
+	
+	private static String player = DEFAULT_PLAYER;
+	private static String ip = DEFAULT_IP;
+	private static String port = "5678";
+
+	
+	JTextField txtUrl;
+	JTextField txtPort;
+	JTextField txtName;
+	
+	public static final int WIDTH = 1024, HEIGHT = 768;
 
 	JDialog connectionDialog;
 	public static ClientGameState clientGameState;
 	private GameCanvas gameCanvas;
-
-	public ClientWindow(String title) {
+	private JFrame theWindow;
+	
+	
+	public ClientWindow(String title, String windowPosition) {
 		// init client game state
 		clientGameState = new ClientGameState();
 		// job queues
@@ -42,10 +57,10 @@ public class ClientWindow extends JFrame {
 		ClientConnection.setConnectionJobsQueue(connectionJobs);
 		ClientConnection.setControllerJobsQueue(controllerJobs);
 		
-		setupFrame("MUS -- client", game);
+		setupFrame("MUS -- client", game, windowPosition);
 		createConnectionDialog();
-		showConnectionDialog();
-		
+		// showConnectionDialog();
+		theWindow = this;
 	
 		controller.start();		
 		game.start();
@@ -55,6 +70,7 @@ public class ClientWindow extends JFrame {
 			public void windowClosing(java.awt.event.WindowEvent windowEvent) {
 				if (JOptionPane.showConfirmDialog(gameCanvas, "Are you sure you want to close this window?", "Close Window?",JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE) == JOptionPane.YES_OPTION){
 					try {
+						// tell the controller that we want to disconnect
 						System.out.println("Interrupting connection threads...");
 						ClientConnection.stop();
 						System.out.println("Calling game.stop()...");
@@ -72,28 +88,37 @@ public class ClientWindow extends JFrame {
 
 		        }
 		    }
+			
+			@Override
+			public void windowOpened(java.awt.event.WindowEvent event) {
+				showConnectionDialog();
+			}
 		});
 
 	}
 
-	private void setupFrame(String title, Game game) {
+	private void setupFrame(String title, Game game, String windowPosition) {
+		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		Dimension d = new Dimension(WIDTH,HEIGHT);
 		this.setTitle(title);
-		this.setMinimumSize(d);		
+		this.setMinimumSize(d);
+		this.setMaximumSize(d);
 		this.setPreferredSize(d);
+		this.pack();
 		this.setMaximumSize(d);
 		this.setSize(WIDTH, HEIGHT);
 		this.setLayout(new BorderLayout());
 		this.getContentPane().setPreferredSize(d);
 		this.getContentPane().setBackground(Color.decode("#1E7E1E"));
 
-		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
 		this.setResizable(false);
 		Dimension desktop = Toolkit.getDefaultToolkit().getScreenSize();
-		this.setLocation((desktop.width - WIDTH) / 2,(desktop.height - HEIGHT) / 2);
-		this.setVisible(true);		
+		int p = Integer.parseInt(windowPosition);
+		this.setLocation((p % 2 )* WIDTH,(p / 2)*HEIGHT/2);
+		//this.setLocation((desktop.width - WIDTH) / 2,(desktop.height - HEIGHT) / 2);
 		this.add(gameCanvas);
-		this.pack();
+		
 
 	}
 
@@ -112,9 +137,9 @@ public class ClientWindow extends JFrame {
 		connectionDialog.setLocationRelativeTo(this);
 		connectionDialog.setLayout(new GridBagLayout());
 		connectionDialog.setTitle("Connection");
-		JTextField txtUrl = new JTextField("127.0.0.1");
-		JTextField txtPort = new JTextField("5678");
-		JTextField txtName = new JTextField("Roy");
+		txtUrl = new JTextField(ip);
+		txtPort = new JTextField(port);
+		txtName = new JTextField(player);
 		JLabel lblUrl = new JLabel("URL:");
 		JLabel lblPort = new JLabel("Port:");
 		JLabel lblName = new JLabel("Name:");
@@ -132,6 +157,7 @@ public class ClientWindow extends JFrame {
 						connection.start();
 						// forge player ID
 						ClientGameState.setPlayerID(txtName.getText()+":"+GetNetworkAddress.GetAddress("mac").replace("-", ""));
+						theWindow.setTitle(theWindow.getTitle() + " - " + txtName.getText());
 						// tell the Controller to request acknowledgement and game state
 						ClientController.postInitialRequest();
 					} catch (Exception exception) {
@@ -175,6 +201,20 @@ public class ClientWindow extends JFrame {
 		gb.weighty = weighty;
 		gb.fill= fill;
 		return gb;
+	}
+
+	public void updateWithArgs(int i, String string) {
+		if (i==0) {
+			System.out.println("updating txtName text with " + string);
+			txtName.setText(string);
+		} else if(i==1) {
+			System.out.println("updating txtUrl text with " + string);			
+			txtUrl.setText(string);
+		} else if(i==2) {
+			System.out.println("updating txtPort text with " + string);			
+			txtPort.setText(string);
+		}
+		
 	}
 
 }

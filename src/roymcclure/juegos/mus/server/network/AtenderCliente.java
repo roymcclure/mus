@@ -2,15 +2,12 @@ package roymcclure.juegos.mus.server.network;
 
 import static roymcclure.juegos.mus.common.logic.Language.ConnectionState.*;
 import static roymcclure.juegos.mus.common.logic.Language.NodeState.*;
-
+import static roymcclure.juegos.mus.common.logic.Language.PlayerActions.CLOSE_CONNECTION;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.net.Socket;
 
 import roymcclure.juegos.mus.common.logic.jobs.*;
-import roymcclure.juegos.mus.common.logic.*;
 import roymcclure.juegos.mus.common.network.*;
 import roymcclure.juegos.mus.server.logic.SrvMus;
 
@@ -42,12 +39,11 @@ public class AtenderCliente extends Thread {
 	
 	byte thread_id=-1;
 	private boolean connected = false;
-	GameState gs;
-	TableState ts;
+
 	SrvMus server;
 
 	
-	public AtenderCliente(Socket s, GameState gs, TableState ts, byte thread_id, SrvMus server, ControllerJobsQueue controllerJobsQueue, ConnectionJobsQueue connectionJobsQueue) {
+	public AtenderCliente(Socket s, byte thread_id, SrvMus server, ControllerJobsQueue controllerJobsQueue, ConnectionJobsQueue connectionJobsQueue) {
 		this.socket = s;
 		this.thread_id = thread_id;		
 		this.connectionJobsQueue = connectionJobsQueue;
@@ -66,10 +62,7 @@ public class AtenderCliente extends Thread {
 		//System.out.println("Server assigned socket to read connection thread");		
 		readThread = new Thread(rct);
 		readThread.setName("ConnectionThread-Read-Client"+thread_id);
-		
-		
-		this.gs = gs;
-		this.ts = ts;
+
 		connected = true;
 		this.server = server;
 	}
@@ -82,7 +75,9 @@ public class AtenderCliente extends Thread {
 		try {
 			//System.out.println("[AtenderCliente] de thread_id: " + thread_id + " se queda esperando a que finalicen sus threads de lectura y escritura...");
 			readThread.join();
+			System.out.println("AtenderCliente: readThread joined.");
 			writeThread.join();
+			System.out.println("AtenderCliente: writeThread joined.");			
 			//System.out.println("[AtenderCliente] de thread_id: " + thread_id + " threads de lectura y escritura: succesfully joined.");			
 		} catch (InterruptedException ie) {
 			server.log("Thread was interrupted while waiting for its read & write threads to join.");
@@ -91,7 +86,15 @@ public class AtenderCliente extends Thread {
 		} finally {
 			// tell server that user disconnected
 			// and to release seat_id*/			
-			server.releaseThread(thread_id);
+			synchronized(controllerJobsQueue) {
+				ClientMessage cm = new ClientMessage();
+				cm.setAction(CLOSE_CONNECTION);
+				ConnectionJob job = new ConnectionJob(cm);
+				job.setThreadId(thread_id);
+				controllerJobsQueue.postRequestJob(new MessageJob(cm));
+				controllerJobsQueue.notify();
+			}
+			System.out.println("AtenderCliente de thread " + thread_id + " terminó su ejecución.");
 		}
 
 	}
@@ -102,6 +105,8 @@ public class AtenderCliente extends Thread {
 	
 	public void disconnect() {
 		try {
+			readThread.interrupt();
+			writeThread.interrupt();
 			socket.close();
 			connected = false;			
 		} catch (IOException e) {
@@ -110,19 +115,5 @@ public class AtenderCliente extends Thread {
 		}
 
 	}
-
-	public void notifyStateChange() {
-		// game state has changed, so we should update the client
-		/*
-		try {
-			send(ServerMessage.forgeDataPacket(gs, ts));
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		*/
-		
-	}	
-
 
 }

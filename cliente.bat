@@ -1,1 +1,1 @@
-java -cp "%cd%\bin" roymcclure.juegos.mus.cliente.UI.ClientPrincipal
+java -cp "%cd%\bin" roymcclure.juegos.mus.cliente.UI.ClientPrincipal %1 %2 %3 %4

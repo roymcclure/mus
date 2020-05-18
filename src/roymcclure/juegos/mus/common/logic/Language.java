@@ -6,9 +6,12 @@ public class Language {
 	public class PlayerActions {
 		
 		public static final byte PASS = 0,
-								ENVITE = 1,
-								ACCEPT = 2,
+								ENVITE = 1, // ENVIDAR is basically the same operation as ENVIDAR_MAS, placing a bet on top of what is currently bet 
+								ACCEPT = 2, // CALL the envite
 								ORDAGO = 3,
+								MUS = 4,
+								CORTO_MUS = 5,
+								DESCARTAR = 6, // must be accompanied by four booleans to indicate which cards to discard
 								HANDSHAKE = 9,
 								REQUEST_GAME_STATE = 10,
 								REQUEST_SEAT = 11,
@@ -16,12 +19,23 @@ public class Language {
 	
 	}
 	
+	public class GamePhase {
+		public static final byte 	MUS = 0, // players are deciding whether they want mus or not
+									GRANDE = 1,
+									CHICA = 2,
+									PARES = 3,
+									JUEGO = 4,
+									DESCARTE = 5; // all players decided they want mus, then select cards
+	}
+	
 	// game state
 	public class ServerGameState {
-		public static final byte WAITING_ALL_PLAYERS_TO_SEAT = 0,
-				PLAYING = 1,
-				END_OF_ROUND = 2,
-				GAME_FINISHED = 3;
+		public static final byte	WAITING_ALL_PLAYERS_TO_CONNECT = 0, 
+									WAITING_ALL_PLAYERS_TO_SEAT = 1,
+									DEALING = 2, 
+									PLAYING = 3,
+									END_OF_ROUND = 4,
+									GAME_FINISHED = 5;
 	}
 
 	public class ClientGameState {
@@ -29,6 +43,7 @@ public class Language {
 									PICKING_SEAT = 1,
 									AWAITING_ALL_SEATED = 2,
 									PLAYING = 3,
+									END_OF_ROUND = 4,									
 									DISCONNECTED = -1;
 	}
 	
@@ -40,7 +55,7 @@ public class Language {
 	}
 	
 	public class NodeState {
-		public static final byte 	SERVER=0,
+		public static final byte 	SERVER = 0,
 									CLIENT = 1;
 	}
 	
@@ -71,7 +86,12 @@ public class Language {
 								 ID_WEST_SEAT = 3;
 	}
 	
+	public class ButtonIndices {
+		public static final byte BUTTON_MUS = 0,
+								 BUTTON_CORTO_MUS = 1;
+	}
 	
+ 
 		
 	
 }

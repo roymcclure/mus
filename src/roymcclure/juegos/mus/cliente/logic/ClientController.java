@@ -2,8 +2,11 @@ package roymcclure.juegos.mus.cliente.logic;
 
 import roymcclure.juegos.mus.cliente.UI.UIParameters;
 import roymcclure.juegos.mus.cliente.logic.jobs.*;
-import static roymcclure.juegos.mus.common.logic.Language.PlayerActions.*;
 
+import static roymcclure.juegos.mus.common.logic.Language.PlayerActions.*;
+import static roymcclure.juegos.mus.common.logic.Language.ButtonIndices.*;
+
+import roymcclure.juegos.mus.common.logic.Language.GamePhase;
 import roymcclure.juegos.mus.common.logic.jobs.*;
 import roymcclure.juegos.mus.common.network.*;
 
@@ -56,6 +59,29 @@ public class ClientController extends Thread {
 				// we request that seat from the server
 				postConnectionJob(REQUEST_SEAT, seat, ""); 
 			}
+		} else {
+			// i am seated
+			// send requests only if its my turn to talk
+			byte my_seat_id =ClientGameState.table().getSeatOf(ClientGameState.getPlayerID());
+			//System.out.println("player in turn is:"+ClientGameState.table().getJugador_debe_hablar());
+			//System.out.println("my seat id is:"+my_seat_id);			
+			if (my_seat_id== ClientGameState.table().getJugador_debe_hablar()) {
+				//System.out.println("entering the if i am player_in_turn");
+				switch(ClientGameState.table().getTipo_Lance()) {
+				case GamePhase.MUS:
+					//System.out.println("entering the MUS switch branch");					
+					byte clicked_button = UIParameters.getMenuClickedButton(2,x,y);
+					switch(clicked_button) {
+					case BUTTON_MUS:
+						postConnectionJob(MUS, (byte) 0,"");
+						break;
+					case BUTTON_CORTO_MUS:
+						postConnectionJob(CORTO_MUS, (byte) 0,"");						
+						break;
+					}
+					break;
+				}
+			}
 		}
 	}
 	
@@ -102,7 +128,7 @@ public class ClientController extends Thread {
 		}
 		else if (job instanceof InputReceivedJob) {
 			clickReceived(((InputReceivedJob) job).getX(), ((InputReceivedJob) job).getY());
-		}
+		} 
 		System.out.println("Updating View...");
 		_handler.updateView();
 	}

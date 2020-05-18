@@ -11,7 +11,6 @@ import roymcclure.juegos.mus.common.logic.jobs.ControllerJobsQueue;
 
 public class Game implements Runnable {
 	
-	public static final int WIDTH = 640, HEIGHT = 480;
 	private Thread thread;
 	public static boolean running = false;
 	
