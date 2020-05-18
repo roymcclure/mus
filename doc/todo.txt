@@ -1,0 +1,5 @@
+- correct display of names -> DONE 
+- correct positioning of names -> DONE, more or less
+- correct display of hand -> DONE
+- correct positioning of hands -> WIP
+- 
