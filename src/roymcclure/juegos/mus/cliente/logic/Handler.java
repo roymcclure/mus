@@ -2,18 +2,22 @@ package roymcclure.juegos.mus.cliente.logic;
 
 
 import java.awt.Graphics;
+
 import java.awt.Point;
 import java.util.LinkedList;
 
 import roymcclure.juegos.mus.cliente.UI.*;
+import roymcclure.juegos.mus.common.logic.Language.GamePhase;
 import roymcclure.juegos.mus.common.logic.cards.Carta;
 import roymcclure.juegos.mus.common.network.ClientMessage;
 
 import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.*;
+import static roymcclure.juegos.mus.common.logic.Language.PlayerActions.*;
 import static roymcclure.juegos.mus.common.logic.Language.ServerGameState.*;
 import static roymcclure.juegos.mus.common.logic.Language.GamePhase.*;
 
 import static roymcclure.juegos.mus.cliente.logic.ClientGameState.*;
+
 
 public class Handler {
 
@@ -112,7 +116,7 @@ public class Handler {
 
 	private void updateSelectedCards() {
 		switch(ClientGameState.table().getTipo_Lance()) {
-		case MUS:
+		case GamePhase.MUS:
 			for (int i=0; i<CARDS_PER_HAND;i++)
 				ClientGameState.setSelectedCard(i, false);
 		case DESCARTE:
@@ -199,7 +203,7 @@ public class Handler {
 	private void updateButtonsViewDealing() {
 
 		switch(ClientGameState.table().getTipo_Lance()) {
-		case MUS:// la gente se está dando mus
+		case GamePhase.MUS:// la gente se está dando mus
 			if (ClientGameState.table().getJugador_debe_hablar()==my_seat_id()) {
 				// its either mus, or cut.
 				String[] labels_mus = {"MUS","CORTO MUS"};
@@ -209,7 +213,7 @@ public class Handler {
 				addTextGameObject(new Point(UIParameters.WIDTH/2,  UIParameters.HEIGHT/2),"Waiting for another player to talk...");
 			}	
 			break;
-		case DESCARTE:
+		case GamePhase.DESCARTE:
 			if (!me().isCommitedToDiscard()) {
 				addTextGameObject(new Point(UIParameters.WIDTH/2,  (UIParameters.HEIGHT/2)-100),"Elige qué cartas quieres descartar.");
 				String[] labels_descarte = {"ESTOY SERVIDO"};
@@ -309,8 +313,14 @@ public class Handler {
 		int x = UIParameters.WIDTH / 2 - UIParameters.BOCADILLO_ANCHO / 2;
 		int y = UIParameters.HEIGHT / 2 - UIParameters.BOCADILLO_ALTO / 2;
 		byte absolute_seat_id = ClientGameState.table().getSeatOf(broadCastMessage.getInfo());
+		System.out.println("El absolute seat id de " + broadCastMessage.getInfo() + " es " + absolute_seat_id);
 		byte relative_seat_id = UIParameters.positionFromPlayerPerspective(ClientGameState.my_seat_id(), absolute_seat_id);
-		BocadilloView bv = new BocadilloView(x,y,ID.Bocadillo, 2000,relative_seat_id);
+		System.out.println("El relative seat id de " + broadCastMessage.getInfo() + " es " + relative_seat_id);
+		String[] actions = {"PASO","ENVIDO ","SE VE","ORDAGO EN VUESTRA PUTA CARA","MUS","MIS COJONES MUS","ME TIRO DE "};
+		String msg = actions[broadCastMessage.getAction()];
+		if (broadCastMessage.getAction()==ENVITE || broadCastMessage.getAction() == DESCARTE)
+			msg+=broadCastMessage.getQuantity();		
+		BocadilloView bv = new BocadilloView(x,y,ID.Bocadillo, 2000,relative_seat_id,msg);
 		addTemporaryObject(bv);
 		System.out.println("ADDED BOCADILLO VIEW IN " + x+ ","+y);
 		
