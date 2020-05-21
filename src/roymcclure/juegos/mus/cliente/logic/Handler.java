@@ -5,55 +5,99 @@ import java.awt.Graphics;
 import java.awt.Point;
 import java.util.LinkedList;
 
-import roymcclure.juegos.mus.cliente.UI.CartaView;
-import roymcclure.juegos.mus.cliente.UI.GenericButtonView;
-import roymcclure.juegos.mus.cliente.UI.SeatButtonView;
-import roymcclure.juegos.mus.cliente.UI.UIParameters;
+import roymcclure.juegos.mus.cliente.UI.*;
 import roymcclure.juegos.mus.common.logic.cards.Carta;
+import roymcclure.juegos.mus.common.network.ClientMessage;
 
 import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.*;
 import static roymcclure.juegos.mus.common.logic.Language.ServerGameState.*;
 import static roymcclure.juegos.mus.common.logic.Language.GamePhase.*;
 
+import static roymcclure.juegos.mus.cliente.logic.ClientGameState.*;
+
 public class Handler {
 
 	private static LinkedList<GameObject> objects = new LinkedList<GameObject>();
+	private static LinkedList<GameObject> temporaryObjects = new LinkedList<GameObject>();	
 	
 	private static Graphics _graphics;
 	
 	public Handler() {}
 	
 	public void update() {
-		for (int i=0; i<objects.size(); i++) {
-			GameObject tempObject = objects.get(i);
-			tempObject.tick();
+		synchronized(objects) {
+			for (int i=0; i<objects.size(); i++) {
+				GameObject tempObject = objects.get(i);
+				tempObject.tick();
+			}
 		}
+		synchronized(temporaryObjects) {
+			for (int i=0; i<temporaryObjects.size(); i++) {
+				GameObject tempObject = temporaryObjects.get(i);
+				tempObject.tick();
+			}
+		}		
 	}
 	
 	public void render(Graphics g) {
 		_graphics = g;		
-		for (int i=0; i<objects.size(); i++) {
-			GameObject tempObject = objects.get(i);
-			tempObject.render(_graphics);
+		synchronized(objects) {
+			for (int i=0; i<objects.size(); i++) {
+				GameObject tempObject = objects.get(i);
+				tempObject.render(_graphics);
+			}
 		}
-		
+		synchronized(temporaryObjects) {
+			for (int i=0; i<temporaryObjects.size(); i++) {
+				GameObject tempObject = temporaryObjects.get(i);
+				tempObject.render(_graphics);
+				if (tempObject.isMarkedForRemoval()) {
+					temporaryObjects.remove(tempObject);
+				}
+			}
+
+		}
+
 	}
-	
+
 	public static void addObject(GameObject go) {
-		objects.add(go);
+		synchronized(objects) {
+			objects.add(go);
+		}
 	}
 	
 	public void removeObject(GameObject go) {
-		objects.remove(go);
+		synchronized(objects) {
+			objects.remove(go);
+		}
 	}
 	
+	public static void addTemporaryObject(GameObject go) {
+		synchronized(objects) {
+			temporaryObjects.add(go);
+		}
+	}
+	
+	public void removeTemporaryObject(GameObject go) {
+		synchronized(objects) {
+			temporaryObjects.remove(go);
+		}
+	}	
+	
+	// TODO: there is no need to re-create all objects that havent changed	
 	public void updateView() {
-		objects.clear();
+		//System.out.println("called updateView in handler");
+		synchronized(objects) {
+			objects.clear();
+		}
 		// player names
 		updateNamesView();
 		// cards
-		// todo: there's a "gameState" mess in the namespace. needs refactor.
 		updateCards();
+		// mouse over card
+		updateMouseOverCard();
+		// selected cards
+		updateSelectedCards();
 		// deck of discarded cards
 		// deck of remaining cards
 		// show who's hand
@@ -65,29 +109,64 @@ public class Handler {
 		updateButtonsView();
 	}
 
-	private void updateHandPosition() {
-		// get position of who's mano
-		byte habla = ClientGameState.table().getJugador_debe_hablar();
-		byte my_seat_id = ClientGameState.table().getSeatOf(ClientGameState.getPlayerID());		
-		byte finalPosition = UIParameters.positionFromPlayerPerspective(my_seat_id, habla);
-		Point p = UIParameters.getHandPosition(finalPosition);
-		HandView hand = new HandView(p.x, p.y, ID.Mano);
-		addObject(hand);		
+
+	private void updateSelectedCards() {
+		switch(ClientGameState.table().getTipo_Lance()) {
+		case MUS:
+			for (int i=0; i<CARDS_PER_HAND;i++)
+				ClientGameState.setSelectedCard(i, false);
+		case DESCARTE:
+			for (int i = 0; i < MAX_CLIENTS; i++) {
+				if (ClientGameState.getSelectedCard(i)) {
+					Point p = UIParameters.getCardRenderPosition(2, i);
+					addObject(new CardFrameView(p.x, p.y, ID.CartaFrameSelected));
+				}
+			}
+			break;
+		}		
 	}
 
-	private static void updateCards() {
-		if (ClientGameState.getGameState().getGameState()==PLAYING || ClientGameState.getGameState().getGameState()==DEALING || ClientGameState.getGameState().getGameState()==END_OF_ROUND) {
-			byte my_seat_id = ClientGameState.table().getSeatOf(ClientGameState.getPlayerID());
-			// read all cards in state
+	private void updateMouseOverCard() {
+		switch(ClientGameState.table().getTipo_Lance()) {
+		case DESCARTE:
+			int pos_in_hand =ClientGameState.getMouseOverCard(); 
+			if (pos_in_hand!=-1 && !me().isCommitedToDiscard()) {
+				Point p = UIParameters.getCardRenderPosition(2, pos_in_hand);
+				addObject(new CardFrameView(p.x, p.y, ID.CartaFrame));
+			}		
+			break;
+		}
+
+	}
+
+	private void updateHandPosition() {
+		// get position of who's mano
+		if (ClientGameState.getGameState().getServerGameState() != WAITING_ALL_PLAYERS_TO_CONNECT && ClientGameState.getGameState().getServerGameState() != WAITING_ALL_PLAYERS_TO_CONNECT) { 
+			byte mano = ClientGameState.table().getMano_seat_id();
+			byte finalPosition = UIParameters.positionFromPlayerPerspective(my_seat_id(), mano);
+			Point p = UIParameters.getHandPosition(finalPosition);
+			HandView hand = new HandView(p.x, p.y, ID.Mano);
+			addObject(hand);		
+		}
+	}
+
+	private void updateCards() {
+		switch(ClientGameState.getGameState().getServerGameState()) {
+		case PLAYING:
+		case DEALING:
+		case END_OF_ROUND:
+		{
 			for (byte i = 0; i<MAX_CLIENTS;i++) {
 				Carta[] cartas = ClientGameState.table().getClient(i).getCartas(); 
 				for (byte j = 0; j<CARDS_PER_HAND;j++) {
-					Point p = UIParameters.getCardRenderPosition(UIParameters.positionFromPlayerPerspective(my_seat_id, i), j);
+					Point p = UIParameters.getCardRenderPosition(UIParameters.positionFromPlayerPerspective(my_seat_id(), i), j);
 					// System.out.println("Para cliente " + i + " añado carta con id " + cartas[j].getId() + " en posicion " + p.x + "," + p.y);
 					addCartaView(p, cartas[j].getId());
 				}
 			}
-		}	
+		}
+		break;
+		}			
 	}
 	
 	private static void addCartaView(Point p, byte carta_id) {
@@ -99,7 +178,8 @@ public class Handler {
 	private void updateButtonsView() {
 		// state-dependent and this client-only
 		// if i am not seated, display SEAT button where available
-		switch(ClientGameState.getGameState().getGameState()) {
+		//System.out.println("en updateButtonsView");
+		switch(ClientGameState.getGameState().getServerGameState()) {
 		case WAITING_ALL_PLAYERS_TO_CONNECT:
 		case WAITING_ALL_PLAYERS_TO_SEAT:
 			updateButtonsViewAwaitingAllSeated();
@@ -108,7 +188,7 @@ public class Handler {
 			updateButtonsViewPlaying();
 			break;
 		case DEALING:
-			updateButtonsViewDealing(ClientGameState.table().getTipo_Lance());
+			updateButtonsViewDealing();
 			break;
 		
 		}
@@ -116,13 +196,9 @@ public class Handler {
 		
 	}
 	
-	private byte my_seat_id() {
-		return ClientGameState.table().getSeatOf(ClientGameState.getPlayerID());
-	}
-	
-	private void updateButtonsViewDealing(byte tipo_lance) {
-	
-		switch(tipo_lance) {
+	private void updateButtonsViewDealing() {
+
+		switch(ClientGameState.table().getTipo_Lance()) {
 		case MUS:// la gente se está dando mus
 			if (ClientGameState.table().getJugador_debe_hablar()==my_seat_id()) {
 				// its either mus, or cut.
@@ -134,10 +210,14 @@ public class Handler {
 			}	
 			break;
 		case DESCARTE:
-			
-			addTextGameObject(new Point(UIParameters.WIDTH/2,  UIParameters.HEIGHT/2),"Choose the cards you want to discard.");
-			String[] labels_descarte = {"DESCARTAR"};
-			addButtons(labels_descarte);			
+			if (!me().isCommitedToDiscard()) {
+				addTextGameObject(new Point(UIParameters.WIDTH/2,  (UIParameters.HEIGHT/2)-100),"Elige qué cartas quieres descartar.");
+				String[] labels_descarte = {"ESTOY SERVIDO"};
+				addButtons(labels_descarte);	
+			} else {
+				addTextGameObject(new Point(UIParameters.WIDTH/2,  UIParameters.HEIGHT/2),"Esperando a que el resto se descarte...");
+			}
+						
 			break;
 			
 		}
@@ -146,23 +226,36 @@ public class Handler {
 	}
 
 	private void updateButtonsViewPlaying() {
+
 		// when playing, i only show buttons to the player in turn
-		if (ClientGameState.table().getJugador_debe_hablar()==my_seat_id()) {
-			updateButtonsViewForPhase(ClientGameState.table().getId_ronda());
-		} 
-		
+		updateButtonsViewForPhase(ClientGameState.table().getTipo_Lance());
 	}
 
 	// this are the possible actions for the player in turn
 	private void updateButtonsViewForPhase(byte tipo_ronda) {
+
 		switch(tipo_ronda) {
-		case GRANDE:
-			break;
 		case CHICA:
-			break;
 		case PARES:
-			break;
 		case JUEGO:
+		case GRANDE:
+			if (ClientGameState.table().getJugador_debe_hablar()==my_seat_id()) {
+				if (table().getPiedras_envidadas_ronda_actual()==0) {
+					String[] labels_grande = {"ENVIDAR 2", "ENVIDAR 5", "ORDAGO", "PASO"};
+					addButtons(labels_grande);	
+				}
+				else if (table().isOrdago_lanzado()){
+					// hay un ordago
+					String[] labels_grande = {"ACEPTAR ORDAGO!", "SOY UN CAGAO"};
+					addButtons(labels_grande);					
+				} else {
+					// hay un envite normal
+					String[] labels_grande = {"ENVIDAR 2 MAS", "ENVIDAR 5 MAS", "ORDAGO", "PASO", "ACEPTAR"};
+					addButtons(labels_grande);						
+				}
+			} else {
+				addTextGameObject(new Point(UIParameters.WIDTH/2,  UIParameters.HEIGHT/2),"Esperando a que hablen los demás...");
+			}
 			break;
 		}
 		
@@ -204,13 +297,23 @@ public class Handler {
 				addTextGameObject(p, ClientGameState.table().getClient(i).getName());
 			}
 		} else {
-			byte my_seat_id = ClientGameState.table().getSeatOf(ClientGameState.getPlayerID());
 			for (byte i = 0; i < MAX_CLIENTS; i++) {
-				byte pos = UIParameters.positionFromPlayerPerspective(my_seat_id, i);
+				byte pos = UIParameters.positionFromPlayerPerspective(my_seat_id(), i);
 				Point p = UIParameters.getPlayerNameOrigin(pos);
 				addTextGameObject(p,ClientGameState.table().getClient(i).getName());
 			}
 		}
+	}
+
+	public void broadcastMsgToView(ClientMessage broadCastMessage) {
+		int x = UIParameters.WIDTH / 2 - UIParameters.BOCADILLO_ANCHO / 2;
+		int y = UIParameters.HEIGHT / 2 - UIParameters.BOCADILLO_ALTO / 2;
+		byte absolute_seat_id = ClientGameState.table().getSeatOf(broadCastMessage.getInfo());
+		byte relative_seat_id = UIParameters.positionFromPlayerPerspective(ClientGameState.my_seat_id(), absolute_seat_id);
+		BocadilloView bv = new BocadilloView(x,y,ID.Bocadillo, 2000,relative_seat_id);
+		addTemporaryObject(bv);
+		System.out.println("ADDED BOCADILLO VIEW IN " + x+ ","+y);
+		
 	}
 
 	

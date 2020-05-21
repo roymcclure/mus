@@ -6,11 +6,15 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionListener;
 import java.awt.image.BufferStrategy;
 
-import roymcclure.juegos.mus.cliente.logic.Game;
 import roymcclure.juegos.mus.cliente.logic.Handler;
+import roymcclure.juegos.mus.cliente.logic.jobs.InputReceivedJob;
 import roymcclure.juegos.mus.common.logic.jobs.ControllerJobsQueue;
+
+import static roymcclure.juegos.mus.common.logic.Language.MouseInputType.*;
 
 public class GameCanvas extends Canvas {
 
@@ -19,6 +23,40 @@ public class GameCanvas extends Canvas {
 	
 	public GameCanvas(ControllerJobsQueue jobs) {
 		this.addMouseListener(new MusMouseListener(jobs));
+		this.addMouseMotionListener(new MouseMotionListener() {
+			
+			@Override
+			public void mouseMoved(MouseEvent e) {
+				
+				// dont want to overwhelm the job queue with redundant info
+				// so i make the preselection here
+				int i = UIParameters.getCardPosUnderMouse(e.getX(), e.getY());
+				if (i!=-1) {
+					if (!UIParameters.mouseIsOverCard) {
+						UIParameters.mouseIsOverCard = true;
+						jobs.postRequestJob(new InputReceivedJob(i, e.getY(),MOUSE_ENTERED_CARD));
+						synchronized(jobs) {
+							jobs.notify();
+						}
+					}	
+				} else {
+					if (UIParameters.mouseIsOverCard) {
+						UIParameters.mouseIsOverCard = false;
+						jobs.postRequestJob(new InputReceivedJob(e.getX(), e.getY(),MOUSE_EXITED_CARD));
+						synchronized(jobs) {
+							jobs.notify();
+						}						
+					}
+				}								
+			}
+			
+			@Override
+			public void mouseDragged(MouseEvent e) {
+				// TODO Auto-generated method stub
+				
+			}
+		});
+		
 		this.addKeyListener(new KeyListener() {
 			
 			@Override
@@ -29,10 +67,6 @@ public class GameCanvas extends Canvas {
 			
 			@Override
 			public void keyReleased(KeyEvent e) {
-				System.out.println(e.getKeyCode());
-				if (e.getKeyCode() == 32) {
-					System.out.println("MARICOOON!");
-				}
 				
 			}
 			

@@ -1,8 +1,11 @@
 package roymcclure.juegos.mus.common.logic.cards;
 
-import java.io.Serializable;
+import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.CARDS_PER_SUIT;
 
-public class Carta implements Serializable {
+import java.io.Serializable;
+import java.util.Comparator;
+
+public class Carta implements Serializable, Comparator<Carta> {
 
 	/**
 	 * 
@@ -34,6 +37,38 @@ public class Carta implements Serializable {
 			return true;
 		}		
 		return false;
+	}
+	
+	public static boolean isCerdo(byte card_id) {
+    	// keep rest of dividing card_id by CARDS_PER_SUIT
+    	// rest is either 2 or 11
+    	card_id = (byte) (card_id % CARDS_PER_SUIT);
+    	return card_id==2 || card_id == 11;
+    }
+	
+	public byte valor() {
+		byte num = (byte) (this.getId() % CARDS_PER_SUIT);
+		if (num== 2 || num==9 || num == 10 || num == 11)
+			return 10;
+		if (num == 0 || num == 1)
+			return 1;
+		return num;
+	}
+
+	public static boolean isPito(byte card_id) {
+		card_id = (byte) (card_id % CARDS_PER_SUIT);
+    	return card_id==0 || card_id == 1;
+	}
+
+	@Override
+	public int compare(Carta arg0, Carta arg1) {
+		return ((Integer)((int)arg0.valor())).compareTo((Integer)((int)arg1.valor())); 
+	}
+	
+	public boolean compareTo(Carta otraCarta) {
+		if (otraCarta.valor() > this.valor())
+			return false;
+		else return true;
 	}
 	
 }

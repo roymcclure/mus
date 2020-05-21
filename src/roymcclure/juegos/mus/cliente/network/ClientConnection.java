@@ -72,8 +72,7 @@ public class ClientConnection implements Runnable {
 	public static void stop() {
 		connected = false;
 		try {
-			ClientMessage cm = new ClientMessage();
-			cm.setAction(CLOSE_CONNECTION);
+			ClientMessage cm = new ClientMessage(CLOSE_CONNECTION, (byte) 0, "");
 			ConnectionJob job = new ConnectionJob(cm);
 			synchronized(_connectionJobs) {
 				_connectionJobs.postConnectionJob(job);

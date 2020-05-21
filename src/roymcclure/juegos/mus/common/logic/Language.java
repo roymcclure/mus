@@ -15,17 +15,19 @@ public class Language {
 								HANDSHAKE = 9,
 								REQUEST_GAME_STATE = 10,
 								REQUEST_SEAT = 11,
+								LEAVE_SEAT = 12,
 								CLOSE_CONNECTION = 20;
 	
 	}
 	
 	public class GamePhase {
 		public static final byte 	MUS = 0, // players are deciding whether they want mus or not
-									GRANDE = 1,
-									CHICA = 2,
-									PARES = 3,
-									JUEGO = 4,
-									DESCARTE = 5; // all players decided they want mus, then select cards
+									DESCARTE = 1, // all players decided they want mus, then select cards
+									GRANDE = 2,
+									CHICA = 3,
+									PARES = 4,
+									JUEGO = 5,
+									FIN_RONDA = 6; 
 	}
 	
 	// game state
@@ -38,15 +40,6 @@ public class Language {
 									GAME_FINISHED = 5;
 	}
 
-	public class ClientGameState {
-		public static final byte 	AWAITING_GAME_STATE = 0,
-									PICKING_SEAT = 1,
-									AWAITING_ALL_SEATED = 2,
-									PLAYING = 3,
-									END_OF_ROUND = 4,									
-									DISCONNECTED = -1;
-	}
-	
 	// connection state
 	public class ConnectionState {
 		public static final byte READ = 0,
@@ -87,11 +80,31 @@ public class Language {
 	}
 	
 	public class ButtonIndices {
-		public static final byte BUTTON_MUS = 0,
-								 BUTTON_CORTO_MUS = 1;
+		public static final byte 	BUTTON_MUS = 0,
+									BUTTON_CORTO_MUS = 1,
+									BUTTON_ACEPTO_ORDAGO = 0,
+									BUTTON_ME_CAGO = 1,
+									BUTTON_ENVIDAR_2 = 0,									
+									BUTTON_ENVIDAR_5 = 1,									
+									BUTTON_ORDAGO = 2,
+									BUTTON_PASO = 3,
+									BUTTON_ACEPTAR = 4;									
 	}
 	
- 
+	public class MouseInputType {
+		public static final byte MOUSE_CLICK = 0,
+								 MOUSE_MOVE = 1,
+								 MOUSE_ENTERED_CARD = 2,
+								 MOUSE_EXITED_CARD = 3;
+	}
+		
+	// legacy code from previous version
+	public enum TipoPares {
+		PAR,
+		MEDIAS,
+		DUPLES,
+		NO_PAR
+	}
 		
 	
 }

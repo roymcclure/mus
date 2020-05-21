@@ -36,8 +36,6 @@ public class HandView extends GameObject {
 
 	@Override
 	public void render(Graphics g) {
-		g.setColor(Color.white);
-		g.fillRect(x, y,ANCHO_ICONO_MANO, ALTO_ICONO_MANO);
 		Point q = new Point(0, 0);		
 		g.drawImage(img, x, y, x + ANCHO_ICONO_MANO, y + ALTO_ICONO_MANO,
 				q.x, q.y, q.x + ANCHO_ICONO_MANO_FICHERO, q.y + ALTO_ICONO_MANO_FICHERO, null);	

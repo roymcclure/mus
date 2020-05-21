@@ -22,6 +22,10 @@ public class ServerMessage implements Serializable {
 
 	private TableState tableState;
 	private GameState gameState;
+	private boolean broadCast; // it is a broadcast msg
+	// TODO: only for broadcast purposes. NOT ELEGANT. the right way? create a BroadCastMessage class.
+	@SuppressWarnings("unused")
+	private ClientMessage clientMessage; 
 	
 	public GameState getGameState() {
 		return gameState;
@@ -54,7 +58,7 @@ public class ServerMessage implements Serializable {
 
 	
 	// why does a message sent to the player require a player id?
-	public static ServerMessage forgeDataPacket(GameState gs, TableState tableState, String playerID) {
+	public static ServerMessage forgeStateMessage(GameState gs, TableState tableState, String playerID) {
 		ServerMessage sm = new ServerMessage();
 		sm.setGameState(gs.clone());
 		sm.setTableState(tableState.clone(playerID));
@@ -65,7 +69,10 @@ public class ServerMessage implements Serializable {
 		System.out.println("Estado de juego:");
 		System.out.println("----------------");
 		if (gameState != null) { 
-			switch(gameState.getGameState()) {
+			switch(gameState.getServerGameState()) {
+			case WAITING_ALL_PLAYERS_TO_CONNECT:
+				System.out.println("STATE SERVER: ESPERANDO A QUE TODOS SE CONECTEN");				
+				break;
 			case WAITING_ALL_PLAYERS_TO_SEAT:
 				System.out.println("STATE SERVER: ESPERANDO A QUE TODOS SE SIENTEN");
 				break;
@@ -85,11 +92,32 @@ public class ServerMessage implements Serializable {
 			}
 		} else {
 			System.out.println("El mensaje no contiene info del estado de la partida.");
-		}
-			
-		
+		}		
 		
 	}
+
+	public boolean isBroadCastMsg() {
+		return broadCast;
+	}	
 	
+	public void setBroadCastMsg(boolean b) {
+		broadCast = b;
+	}
+
+	public static ServerMessage forgeBroadCastMessage(ClientMessage cm, String playerID) {
+		ServerMessage sm = new ServerMessage();
+		sm.setClientMessage(cm, playerID);
+		sm.setBroadCastMsg(true);
+		return sm;
+	}
+
+	private void setClientMessage(ClientMessage cm, String playerID) {
+		this.clientMessage = new ClientMessage(cm.getAction(), cm.getQuantity(),playerID);
+		
+	}
+
+	public ClientMessage getBroadCastMessage() {
+		return clientMessage;
+	}
 	
 }

@@ -23,7 +23,7 @@ public class ConnectionJobsQueue {
 	}
 
 	public synchronized void postConnectionJob(Job j) {
-		System.out.println("A CONNECTION JOB WAS POSTED IN THE JOBS QUEUE");
+		// System.out.println("A CONNECTION JOB WAS POSTED IN THE JOBS QUEUE");
 		connectionJobs.add(j);		
 	}
 

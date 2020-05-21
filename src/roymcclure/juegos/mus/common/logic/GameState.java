@@ -19,7 +19,8 @@ public class GameState implements Serializable {
 	private byte vacas_partida;
 	
 	
-	//  The thread_id used to index player ids is only relevant to the server.
+	//  This here is indexed by thread_id. Players can therefore know the thread_id of the other players, but 
+	//  it really isn't relevant info to them, unless (maybe) they have evil stuff in mind.
 	private String[] player_ids;
 	
 	// this is the SERVER game state.
@@ -62,7 +63,7 @@ public class GameState implements Serializable {
 		this.vacas_partida = vacas_partida;
 	}
 
-	public byte getGameState() {
+	public byte getServerGameState() {
 		return gameState;
 	}
 

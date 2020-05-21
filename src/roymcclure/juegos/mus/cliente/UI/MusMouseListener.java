@@ -5,6 +5,7 @@ import java.awt.event.MouseListener;
 
 import roymcclure.juegos.mus.common.logic.jobs.ControllerJobsQueue;
 import roymcclure.juegos.mus.cliente.logic.jobs.InputReceivedJob;
+import static roymcclure.juegos.mus.common.logic.Language.MouseInputType.*;
 
 public class MusMouseListener implements MouseListener {
 
@@ -27,8 +28,8 @@ public class MusMouseListener implements MouseListener {
 			// of course the UI will have to be updated, but 
 			// this way all game state modification is made outside
 			// of the UI thread
-			System.out.println("Posting a click job in :" + e.getX() + "," + e.getY());
-			jobs.postRequestJob(new InputReceivedJob(e.getX(), e.getY()));	
+			// System.out.println("Posting a click job in :" + e.getX() + "," + e.getY());
+			jobs.postRequestJob(new InputReceivedJob(e.getX(), e.getY(),MOUSE_CLICK));	
 			synchronized(jobs) {
 				jobs.notify();
 			}
@@ -36,13 +37,13 @@ public class MusMouseListener implements MouseListener {
 		
 		@Override
 		public void mouseExited(MouseEvent e) {
-			// TODO Auto-generated method stub
+			
 			
 		}
 		
 		@Override
 		public void mouseEntered(MouseEvent e) {
-			// TODO Auto-generated method stub
+			//System.out.println("mouse in " + e.getX() + "," + e.getY());
 			
 		}
 		

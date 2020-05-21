@@ -7,6 +7,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.net.SocketException;
 
 import static roymcclure.juegos.mus.common.logic.Language.ConnectionState.*;
 import static roymcclure.juegos.mus.common.logic.Language.NodeState.*;
@@ -101,7 +102,7 @@ public class ConnectionThread implements Runnable {
 			} */catch (Exception e) {
 				identify();
 				System.out.println(" --> EXCEPTION CAUGHT");
-				if (e instanceof EOFException) {
+				if (e instanceof EOFException || e instanceof SocketException) {
 					// exception en el thread de lectura del servidor.
 					// the write thread is still reading though.
 					// we need to notify the connectionJobsQueue so the write thread can finish as well

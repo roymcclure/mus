@@ -31,13 +31,13 @@ public class MessageValidation {
 	// does the message make sense within the context?
 	public static boolean isClientMessageConsistent(ClientMessage cm, GameState gs, TableState ts, int client_id) {
 		// pass only makes sense if round_id is 0
-		if (cm.getAction() == Language.PlayerActions.PASS && gs.getGameState() != 0) {
+		if (cm.getAction() == Language.PlayerActions.PASS && gs.getServerGameState() != 0) {
 			return false;
 		}
 		if (cm.getAction() == Language.PlayerActions.ENVITE) {
 			// solo aceptable cuando:
 			// - estamos en ronda de juego
-			if (gs.getGameState()!=Language.ServerGameState.PLAYING) {
+			if (gs.getServerGameState()!=Language.ServerGameState.PLAYING) {
 				return false;
 			}
 			// - me toca hablar

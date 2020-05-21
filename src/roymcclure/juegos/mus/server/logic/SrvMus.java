@@ -93,7 +93,7 @@ public class SrvMus extends Thread {
 			log("started.\n");			
 
 			while (running) {
-				switch(gameState.getGameState()) {
+				switch(gameState.getServerGameState()) {
 
 				case WAITING_ALL_PLAYERS_TO_CONNECT:
 					//System.out.println("Baraja ANTES de waitAllConnected()..");
@@ -199,11 +199,14 @@ public class SrvMus extends Thread {
 		//tableState.printContent();
 		gameState.setGameState(PLAYING);
 		log("Finished dealing cards. Informing clients.");
-		// if player in turn == -1 means beginning of game, assign one randomly				
+		// if player in turn == -1 means beginning of game, assign one randomly	
+
 	}	
 	
 	private void playing() {
-
+		synchronized(key) {
+		key.notify();
+		}
 		// me bloqueo esperando a que controller me diga
 		// que el juego ha terminado
 		byte ronda = tableState.getId_ronda();
@@ -323,6 +326,11 @@ public class SrvMus extends Thread {
 			for (int i = 0; i < MAX_CLIENTS; i++) {
 				log("ID in thread " + i + ":"+gameState.getPlayerID(i));
 			}
+			String[] serverGameState = {"WAITING_ALL_PLAYERS_TO_CONNECT","WAITING_ALL_PLAYERS_TO_SEAT","DEALING","PLAYING","END OF ROUND", "GAME FINISHED"};
+			log("state:" + serverGameState[gameState.getServerGameState()]);
+			log("Piedras por juego:"+gameState.getPiedras_juego());
+			log("Juegos por vaca" + gameState.getJuegos_vaca());
+			log("Vacas para partida:" + gameState.getVacas_partida());
 		} else 	if (tokens[1].toLowerCase().contentEquals("client")) {
 			// show state for that client
 			try {
@@ -335,6 +343,20 @@ public class SrvMus extends Thread {
 			for (int i = 0; i < MAX_CLIENTS; i++) {
 				log( "[seat_id "+i+"]" + "Player ID [" + tableState.getClient(i).getID() +"]");				
 			}
+			log("Jugador que es mano:" + tableState.getMano_seat_id());
+			log("Jugador que debe hablar:" + tableState.getJugador_debe_hablar());
+			String[] lances = {"MUS","DESCARTES","GRANDE","CHICA","PARES","JUEGO"};
+			log("Lance actual:" + lances[tableState.getTipo_Lance()]);
+			log("Piedras en el bote:" + tableState.getPiedras_acumuladas_en_apuesta());
+			log("Piedras envidadas en ronda actual:" + tableState.getPiedras_envidadas_ronda_actual());
+			log("Piedras envidadas a grande:" + tableState.getPiedras_envidadas_a_grande());
+			log("Piedras envidadas a chica:" + tableState.getPiedras_envidadas_a_chica());
+			log("Piedras envidadas a pares:" + tableState.getPiedras_envidadas_a_pares());
+			log("Piedras envidadas a juego:" + tableState.getPiedras_envidadas_a_juego());
+			log("Piedras pareja norte/sur:" + tableState.getPiedras_norte_sur());
+			log("Piedras pareja oeste/este:" + tableState.getPiedras_oeste_este());			
+			log("HAy ordago en juego? " + (tableState.isOrdago_lanzado()? "SI":"NO")); 
+			
 		}
 	}	
 

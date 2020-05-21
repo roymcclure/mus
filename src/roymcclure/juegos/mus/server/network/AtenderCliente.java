@@ -87,7 +87,7 @@ public class AtenderCliente extends Thread {
 			// tell server that user disconnected
 			// and to release seat_id*/			
 			synchronized(controllerJobsQueue) {
-				ClientMessage cm = new ClientMessage();
+				ClientMessage cm = new ClientMessage(CLOSE_CONNECTION,(byte) 0,"");
 				cm.setAction(CLOSE_CONNECTION);
 				ConnectionJob job = new ConnectionJob(cm);
 				job.setThreadId(thread_id);

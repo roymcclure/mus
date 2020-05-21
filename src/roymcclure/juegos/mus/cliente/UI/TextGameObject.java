@@ -1,8 +1,11 @@
-package roymcclure.juegos.mus.cliente.logic;
+package roymcclure.juegos.mus.cliente.UI;
 
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+
+import roymcclure.juegos.mus.cliente.logic.GameObject;
+import roymcclure.juegos.mus.cliente.logic.ID;
 
 public class TextGameObject extends GameObject {
 

@@ -93,7 +93,8 @@ public class Baraja implements Serializable {
 			String palo = palo(c.getId());
 			output+=numero + " de " + palo + ",";
 		}
-		output=output.substring(0, output.length()-2);
+		if (output.length()>1)
+			output=output.substring(0, output.length()-2);
 		System.out.println(output);
 	}
 	
@@ -104,6 +105,10 @@ public class Baraja implements Serializable {
 			copy.addCarta(new Carta(c.getId()));
 		}
 		return copy;
+	}
+	
+	public int size() {
+		return baraja.size();
 	}
 	
 }

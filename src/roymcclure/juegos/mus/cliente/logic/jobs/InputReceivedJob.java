@@ -5,10 +5,20 @@ import roymcclure.juegos.mus.common.logic.jobs.Job;
 public class InputReceivedJob extends Job {
 
 	private int x, y;
+	private byte type;
 	
-	public InputReceivedJob(int x, int y) {
-		this.x = x;
+	public InputReceivedJob(int x, int y, byte type) {
+		this.x = x;		
 		this.y = y;
+		this.type = type;
+	}
+
+	public byte getType() {
+		return type;
+	}
+
+	public void setType(byte type) {
+		this.type = type;
 	}
 
 	public int getX() {

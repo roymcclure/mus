@@ -32,6 +32,7 @@ public class GenericButtonView extends GameObject {
 		g.fillRect(x, y, WIDTH, HEIGHT);
 		Graphics2D g2d = (Graphics2D) g;
 		g2d.setColor(Color.BLACK);
-		g2d.drawString(text, x+WIDTH/2, y+HEIGHT/2);		
+		int width = g.getFontMetrics().stringWidth(text);
+		g2d.drawString(text, (x+WIDTH/2)-width/2, y+HEIGHT/2);		
 	}
 }

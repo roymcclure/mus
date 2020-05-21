@@ -7,7 +7,14 @@ public abstract class GameObject {
 	protected int x, y;
 	protected ID id;
 //	protected int velX, velY;
+	private boolean markedForRemoval=false;
 
+	public boolean isMarkedForRemoval() {
+		return markedForRemoval;
+	}
+	public void setMarkedForRemoval(boolean markedForRemoval) {
+		this.markedForRemoval = markedForRemoval;
+	}
 	public GameObject(int x, int y, ID id) {
 		this.x = x;
 		this.y = y;
@@ -57,6 +64,7 @@ public abstract class GameObject {
 	public void setId(ID id) {
 		this.id = id;
 	}
+
 
 
 	

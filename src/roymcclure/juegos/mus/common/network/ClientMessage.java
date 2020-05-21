@@ -12,7 +12,20 @@ public class ClientMessage implements Serializable {
 	private static final long serialVersionUID = 458220917665843387L;
 	private byte action;
 	private byte quantity;
-	private String info;
+	// used to communicate a player ID, ours when requesting connection, msg originator's when broadcast	
+	private String info; 
+	
+	public ClientMessage(ClientMessage cm) {
+		this.action = cm.getAction();
+		this.quantity = cm.getQuantity();
+		this.info = cm.getInfo();
+	}
+	
+	public ClientMessage(byte playerAction, byte playerQty, String info2) {
+		this.action = playerAction;
+		this.quantity = playerQty;
+		this.info = info2;		
+	}
 	
 	public String getInfo() {
 		return info;
@@ -61,6 +74,15 @@ public class ClientMessage implements Serializable {
 		case Language.PlayerActions.REQUEST_GAME_STATE:
 			content += "ACTION: REQUEST GAME STATE\n";
 			break;
+		case Language.PlayerActions.MUS:
+			content += "ACTION: DARSE MUS\n";
+			break;			
+		case Language.PlayerActions.CORTO_MUS:
+			content += "ACTION: CORTAR MUS\n";
+			break;
+		case Language.PlayerActions.DESCARTAR:
+			content += "ACTION: DESCARTAR\n";
+			break;			
 		default:
 			content += "ACTION: UNKNOWN TYPE!!!\n";
 			break;
