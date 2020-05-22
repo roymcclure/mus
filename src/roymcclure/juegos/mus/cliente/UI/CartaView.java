@@ -5,6 +5,7 @@ import java.awt.Point;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 
 import javax.imageio.ImageIO;
 
@@ -27,8 +28,17 @@ public class CartaView extends GameObject {
 	public CartaView(int x, int y, ID id) {
 		super(x, y, id);
 		try {
-			if (img==null)
-				img = ImageIO.read(new File("resources/baraja_completa.png"));
+			if (img==null) {
+				InputStream in = this.getClass().getResourceAsStream("/resources/Baraja_completa.png");
+				if (in != null) {
+					img = ImageIO.read(in);
+				}
+				else {
+					img = ImageIO.read(new File("resources/Baraja_completa.png"));					
+				}
+
+			}
+
 			
 		} catch (IOException e) {
 			e.printStackTrace();

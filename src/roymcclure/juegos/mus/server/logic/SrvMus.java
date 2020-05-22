@@ -183,7 +183,7 @@ public class SrvMus extends Thread {
 	}
 
 	private void dealing() {
-		while(tableState.getTipo_Lance()!=GRANDE) {
+		while(tableState.getGamePhase()!=GRANDE) {
 			try {
 				log("WAITING FOR THE CONTROLLER TO TELL ME THAT DEALING WAS FINISHED");
 				synchronized(key) {
@@ -346,7 +346,7 @@ public class SrvMus extends Thread {
 			log("Jugador que es mano:" + tableState.getMano_seat_id());
 			log("Jugador que debe hablar:" + tableState.getJugador_debe_hablar());
 			String[] lances = {"MUS","DESCARTES","GRANDE","CHICA","PARES","JUEGO"};
-			log("Lance actual:" + lances[tableState.getTipo_Lance()]);
+			log("Lance actual:" + lances[tableState.getGamePhase()]);
 			log("Piedras en el bote:" + tableState.getPiedras_acumuladas_en_apuesta());
 			log("Piedras envidadas en ronda actual:" + tableState.getPiedras_envidadas_ronda_actual());
 			log("Piedras envidadas a grande:" + tableState.getPiedras_envidadas_a_grande());

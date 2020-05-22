@@ -46,14 +46,35 @@ public class Carta implements Serializable, Comparator<Carta> {
     	return card_id==2 || card_id == 11;
     }
 	
+	// so the tricky part here is:
+	// a card id is card_value -1.
+	// so we need to take that into account
+	public byte valorPares() {
+		byte num = (byte) (this.getId() % CARDS_PER_SUIT);
+		if (num== 2 || num == 11)
+			return 10;
+		if (num == 1)
+			return 1;
+		return (byte) (num + 1);
+	}
+
+	public byte valorJuego() {
+		byte num = (byte) (this.getId() % CARDS_PER_SUIT);
+		if (num== 2 || num== 9 || num == 10 || num == 11)
+			return 10;
+		if (num == 1)
+			return 1;
+		return (byte) (num+1);
+	}
+
 	public byte valor() {
 		byte num = (byte) (this.getId() % CARDS_PER_SUIT);
-		if (num== 2 || num==9 || num == 10 || num == 11)
+		if (num== 2 || num== 9 || num == 10 || num == 11)
 			return 10;
-		if (num == 0 || num == 1)
+		if (num == 1)
 			return 1;
-		return num;
-	}
+		return (byte) (num + 1);
+	}	
 
 	public static boolean isPito(byte card_id) {
 		card_id = (byte) (card_id % CARDS_PER_SUIT);

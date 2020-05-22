@@ -8,8 +8,11 @@ import java.util.LinkedList;
 
 import roymcclure.juegos.mus.cliente.UI.*;
 import roymcclure.juegos.mus.common.logic.Language.GamePhase;
+import roymcclure.juegos.mus.common.logic.Language.PlayerActions;
+import roymcclure.juegos.mus.common.logic.TableState;
 import roymcclure.juegos.mus.common.logic.cards.Carta;
 import roymcclure.juegos.mus.common.network.ClientMessage;
+
 
 import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.*;
 import static roymcclure.juegos.mus.common.logic.Language.PlayerActions.*;
@@ -36,10 +39,12 @@ public class Handler {
 			}
 		}
 		synchronized(temporaryObjects) {
-			for (int i=0; i<temporaryObjects.size(); i++) {
-				GameObject tempObject = temporaryObjects.get(i);
+			//for (int i=0; i<temporaryObjects.size(); i++) {
+			if (temporaryObjects.size() > 0) {
+				GameObject tempObject = temporaryObjects.get(0);
 				tempObject.tick();
 			}
+			//}
 		}		
 	}
 	
@@ -52,16 +57,41 @@ public class Handler {
 			}
 		}
 		synchronized(temporaryObjects) {
-			for (int i=0; i<temporaryObjects.size(); i++) {
-				GameObject tempObject = temporaryObjects.get(i);
+			//for (int i=0; i<temporaryObjects.size(); i++) {
+			if (temporaryObjects.size()>0) {
+				GameObject tempObject = temporaryObjects.get(0);
 				tempObject.render(_graphics);
 				if (tempObject.isMarkedForRemoval()) {
 					temporaryObjects.remove(tempObject);
+					this.onObjectRemoved(tempObject);
 				}
+				
 			}
+			//}
 
 		}
 
+	}
+
+	private void onObjectRemoved(GameObject tempObject) {
+		// used for signaling that we should add a new speech bubble for the next player
+		if (tempObject instanceof BocadilloView) {
+			BocadilloView bv = (BocadilloView) tempObject;
+			if (bv.getTexto().contains("TENGO PARES")) {
+				if (ClientGameState.getPares_hablados()<MAX_CLIENTS) {
+					byte next_seat_id = UIParameters.relativePosition(my_seat_id(), table().getMano_seat_id());
+					for (int i = 0; i<ClientGameState.getPares_hablados();i++) {
+						next_seat_id = TableState.nextTableSeatId(next_seat_id);
+					}
+					ClientMessage cm = new ClientMessage(HABLO_PARES,next_seat_id,table().getClient(next_seat_id).getID());
+					broadcastMsgToView(cm);
+					ClientGameState.setPares_hablados((byte) (ClientGameState.getPares_hablados()+1));					
+				}
+			} else if(bv.getTexto().contains("TENGO JUEGO")) {
+				
+			}
+		}
+		
 	}
 
 	public static void addObject(GameObject go) {
@@ -88,7 +118,8 @@ public class Handler {
 		}
 	}	
 	
-	// TODO: there is no need to re-create all objects that havent changed	
+	// TODO: there is no need to re-create all objects that havent changed
+	// UI update upon Server Message reception.
 	public void updateView() {
 		//System.out.println("called updateView in handler");
 		synchronized(objects) {
@@ -114,8 +145,9 @@ public class Handler {
 	}
 
 
+
 	private void updateSelectedCards() {
-		switch(ClientGameState.table().getTipo_Lance()) {
+		switch(ClientGameState.table().getGamePhase()) {
 		case GamePhase.MUS:
 			for (int i=0; i<CARDS_PER_HAND;i++)
 				ClientGameState.setSelectedCard(i, false);
@@ -123,15 +155,14 @@ public class Handler {
 			for (int i = 0; i < MAX_CLIENTS; i++) {
 				if (ClientGameState.getSelectedCard(i)) {
 					Point p = UIParameters.getCardRenderPosition(2, i);
-					addObject(new CardFrameView(p.x, p.y, ID.CartaFrameSelected));
-				}
+					addObject(new CardFrameView(p.x, p.y, ID.CartaFrameSelected));				}
 			}
 			break;
 		}		
 	}
 
 	private void updateMouseOverCard() {
-		switch(ClientGameState.table().getTipo_Lance()) {
+		switch(ClientGameState.table().getGamePhase()) {
 		case DESCARTE:
 			int pos_in_hand =ClientGameState.getMouseOverCard(); 
 			if (pos_in_hand!=-1 && !me().isCommitedToDiscard()) {
@@ -147,7 +178,7 @@ public class Handler {
 		// get position of who's mano
 		if (ClientGameState.getGameState().getServerGameState() != WAITING_ALL_PLAYERS_TO_CONNECT && ClientGameState.getGameState().getServerGameState() != WAITING_ALL_PLAYERS_TO_CONNECT) { 
 			byte mano = ClientGameState.table().getMano_seat_id();
-			byte finalPosition = UIParameters.positionFromPlayerPerspective(my_seat_id(), mano);
+			byte finalPosition = UIParameters.relativePosition(my_seat_id(), mano);
 			Point p = UIParameters.getHandPosition(finalPosition);
 			HandView hand = new HandView(p.x, p.y, ID.Mano);
 			addObject(hand);		
@@ -163,7 +194,7 @@ public class Handler {
 			for (byte i = 0; i<MAX_CLIENTS;i++) {
 				Carta[] cartas = ClientGameState.table().getClient(i).getCartas(); 
 				for (byte j = 0; j<CARDS_PER_HAND;j++) {
-					Point p = UIParameters.getCardRenderPosition(UIParameters.positionFromPlayerPerspective(my_seat_id(), i), j);
+					Point p = UIParameters.getCardRenderPosition(UIParameters.relativePosition(my_seat_id(), i), j);
 					// System.out.println("Para cliente " + i + " añado carta con id " + cartas[j].getId() + " en posicion " + p.x + "," + p.y);
 					addCartaView(p, cartas[j].getId());
 				}
@@ -202,7 +233,7 @@ public class Handler {
 	
 	private void updateButtonsViewDealing() {
 
-		switch(ClientGameState.table().getTipo_Lance()) {
+		switch(ClientGameState.table().getGamePhase()) {
 		case GamePhase.MUS:// la gente se está dando mus
 			if (ClientGameState.table().getJugador_debe_hablar()==my_seat_id()) {
 				// its either mus, or cut.
@@ -232,7 +263,7 @@ public class Handler {
 	private void updateButtonsViewPlaying() {
 
 		// when playing, i only show buttons to the player in turn
-		updateButtonsViewForPhase(ClientGameState.table().getTipo_Lance());
+		updateButtonsViewForPhase(ClientGameState.table().getGamePhase());
 	}
 
 	// this are the possible actions for the player in turn
@@ -302,29 +333,64 @@ public class Handler {
 			}
 		} else {
 			for (byte i = 0; i < MAX_CLIENTS; i++) {
-				byte pos = UIParameters.positionFromPlayerPerspective(my_seat_id(), i);
+				byte pos = UIParameters.relativePosition(my_seat_id(), i);
 				Point p = UIParameters.getPlayerNameOrigin(pos);
 				addTextGameObject(p,ClientGameState.table().getClient(i).getName());
 			}
 		}
 	}
 
+	// takes a broadCast message and creates a view from it
+	// (just a speech bubble at this point)
+	// TODO: mixing many domains here.
 	public void broadcastMsgToView(ClientMessage broadCastMessage) {
 		int x = UIParameters.WIDTH / 2 - UIParameters.BOCADILLO_ANCHO / 2;
 		int y = UIParameters.HEIGHT / 2 - UIParameters.BOCADILLO_ALTO / 2;
 		byte absolute_seat_id = ClientGameState.table().getSeatOf(broadCastMessage.getInfo());
-		System.out.println("El absolute seat id de " + broadCastMessage.getInfo() + " es " + absolute_seat_id);
-		byte relative_seat_id = UIParameters.positionFromPlayerPerspective(ClientGameState.my_seat_id(), absolute_seat_id);
-		System.out.println("El relative seat id de " + broadCastMessage.getInfo() + " es " + relative_seat_id);
-		String[] actions = {"PASO","ENVIDO ","SE VE","ORDAGO EN VUESTRA PUTA CARA","MUS","MIS COJONES MUS","ME TIRO DE "};
-		String msg = actions[broadCastMessage.getAction()];
+		byte relative_seat_id = UIParameters.relativePosition(ClientGameState.my_seat_id(), absolute_seat_id);
+		String msg = "";
+		switch(broadCastMessage.getAction()) {
+		case PASS:
+			msg = "PASO";
+			break;
+		case ENVITE:
+			msg = "ENVIDO";
+			break;
+		case ACCEPT:
+			msg = "SE VE";
+			break;
+		case ORDAGO:
+			msg = "ORDAGO";			
+			break;
+		case PlayerActions.MUS:
+			msg = "ME DOY MUS";			
+			break;
+		case CORTO_MUS:
+			msg = "UNA MIERDA MUS";			
+			break;
+		case PlayerActions.DESCARTAR:
+			msg = "ME TIRO DE ";			
+			break;
+		case PlayerActions.HABLO_PARES:
+			if (ClientGameState.table().tienePares(broadCastMessage.getQuantity())) {
+				 msg="TENGO PARES";
+			} else {
+				msg = "NO TENGO PARES";
+			}
+			break;
+		case PlayerActions.HABLO_JUEGO:
+			break;
+		}
+
 		if (broadCastMessage.getAction()==ENVITE || broadCastMessage.getAction() == DESCARTE)
-			msg+=broadCastMessage.getQuantity();		
+			msg+=broadCastMessage.getQuantity();
+		if (broadCastMessage.getAction()==ENVITE && ClientGameState.table().getPiedras_acumuladas_en_apuesta() > 0)
+			msg+=" MAS!";
 		BocadilloView bv = new BocadilloView(x,y,ID.Bocadillo, 2000,relative_seat_id,msg);
 		addTemporaryObject(bv);
 		System.out.println("ADDED BOCADILLO VIEW IN " + x+ ","+y);
 		
 	}
 
-	
+
 }

@@ -1,11 +1,11 @@
 package roymcclure.juegos.mus.cliente.logic;
 
-import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 
 import javax.imageio.ImageIO;
 
@@ -21,8 +21,17 @@ public class HandView extends GameObject {
 	public HandView(int x, int y, ID id) {
 		super(x, y, id);
 		try {
-			if (img==null)
-				img = ImageIO.read(new File("resources/hand.png"));
+			if (img==null) {
+
+				InputStream in = this.getClass().getResourceAsStream("/resources/hand.png");
+				if (in != null) {
+				img = ImageIO.read(in);
+				}
+				else {
+					img = ImageIO.read(new File("resources/hand.png"));					
+				}
+			
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

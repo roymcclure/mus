@@ -10,9 +10,11 @@ import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 
 import javax.imageio.ImageIO;
 
+import roymcclure.juegos.mus.cliente.logic.ClientGameState;
 import roymcclure.juegos.mus.cliente.logic.GameObject;
 import roymcclure.juegos.mus.cliente.logic.ID;
 
@@ -23,20 +25,31 @@ public class BocadilloView extends GameObject {
 	private long life_time;
 	private int image_width;
 	private int image_height;
-	private byte seat_id;
 	private String texto;
 
 	public BocadilloView(int x, int y, ID id, long life_time_ms, byte seat_id, String texto) {
 		super(x, y, id);
 		this.life_time = life_time_ms;
 		this.texto = texto;
-		this.seat_id = seat_id;
 		try {
 			if (img==null) {
 				if (seat_id %2 ==0) {
-					img = ImageIO.read(new File("resources/bocadillo_vertical.png"));					
+					
+					InputStream in = this.getClass().getResourceAsStream("/resources/bocadillo_vertical.png");
+					if (in != null) {
+						img = ImageIO.read(in);
+					}
+					else {
+						img = ImageIO.read(new File("resources/bocadillo_vertical.png"));					
+					}				
 				} else {
-					img = ImageIO.read(new File("resources/bocadillo_horizontal.png"));					
+					InputStream in = this.getClass().getResourceAsStream("/resources/bocadillo_horizontal.png");
+					if (in != null) {
+						img = ImageIO.read(in);
+					}
+					else {
+						img = ImageIO.read(new File("resources/bocadillo_horizontal.png"));					
+					}				
 				}
 				image_width = img.getWidth();
 				image_height = img.getHeight();
@@ -59,18 +72,30 @@ public class BocadilloView extends GameObject {
 		}
 	}
 
+	public String getTexto() {
+		return texto;
+	}
+
+	public void setTexto(String texto) {
+		this.texto = texto;
+	}
+
 	@Override
 	public void tick() {
 		checkLifeTime();
 	}
 
 	private void checkLifeTime() {
-		if (start == 0)
+		if (start == 0) {
 			start = System.nanoTime();
+			ClientGameState.setClickEnabled(false);
+		}
 		long now = System.nanoTime();
 		long timeElapsed = now - start;
 		if ((timeElapsed / 1000000) > life_time) {
 			this.setMarkedForRemoval(true);
+			// TODO: im coupling game state to UI here.
+			ClientGameState.setClickEnabled(true);
 		}		
 	}
 
@@ -84,7 +109,6 @@ public class BocadilloView extends GameObject {
 		Font font = new Font("Impact", Font.PLAIN, 32 );
 		g2d.setFont(font); 
 		int text_width = g.getFontMetrics().stringWidth(texto);
-		int text_height = g.getFontMetrics().getHeight();
 		g2d.drawString(texto, x - (text_width / 2)+( UIParameters.BOCADILLO_ANCHO / 2), y + (UIParameters.BOCADILLO_ALTO / 2));
 	}
 

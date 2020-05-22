@@ -4,6 +4,7 @@ import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 
 import javax.imageio.ImageIO;
 
@@ -20,9 +21,17 @@ public class SeatButtonView extends GameObject {
 	public SeatButtonView(int x, int y, ID id) {
 		super(x, y, id);
 		try {
-			img = ImageIO.read(new File("resources/seatbutton.png"));
+			InputStream in = this.getClass().getResourceAsStream("/resources/seatbutton.png");
+			if (in != null) {
+				img = ImageIO.read(in);
+			}
+			else {
+				img = ImageIO.read(new File("resources/seatbutton.png"));					
+			}			
 
-		} catch (IOException e) {
+		} 
+		
+		catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}

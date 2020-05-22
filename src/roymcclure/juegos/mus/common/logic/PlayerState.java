@@ -147,16 +147,16 @@ public class PlayerState implements Serializable {
 
     	// we only want the values. so we get rid of the palo
     	// so we can use the frequency method later
-    	ArrayList<Integer> mano_ = new ArrayList<Integer>();
+    	ArrayList<Integer> mano = new ArrayList<Integer>();
 
-    	for (int i= 0; i <4; i++) {
+    	for (int i= 0; i <CARDS_PER_HAND; i++) {
     		if (cartas[i]!= null)
-    			if (cartas[i].valor()==2) {
-    				mano_.add(1);	
-    			} else if (cartas[i].valor()==3) {
-    				mano_.add(10);						
+    			if (cartas[i].valorPares()==1) {
+    				mano.add(1);	
+    			} else if (cartas[i].valorPares()==2) {
+    				mano.add(10);						
     			} else {
-    				mano_.add((int)cartas[i].valor());	
+    				mano.add((int)cartas[i].valorPares());	
     			}
     	}
 
@@ -168,10 +168,10 @@ public class PlayerState implements Serializable {
     	ArrayList<Integer> conjuntoPares = new ArrayList<Integer>();    	    	
     	ArrayList<Integer> yaLeidos = new ArrayList<Integer>();
 
-    	for (int v : mano_) {
+    	for (int v : mano) {
     		if (!yaLeidos.contains(v)) {
-    			System.out.println("añadiendo conjunto:" + Collections.frequency(mano_, v));
-    			conjuntoPares.add(Collections.frequency(mano_, v));
+    			System.out.println("añadiendo conjunto:" + Collections.frequency(mano, v));
+    			conjuntoPares.add(Collections.frequency(mano, v));
     			yaLeidos.add(v);
     		}
 

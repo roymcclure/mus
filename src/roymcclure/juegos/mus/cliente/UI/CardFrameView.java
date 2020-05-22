@@ -4,6 +4,7 @@ import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 
 import javax.imageio.ImageIO;
 
@@ -24,12 +25,27 @@ public class CardFrameView extends GameObject {
 		super(x, y, id);
 		try {
 			if (img==null) {
+				InputStream in = null;
 				switch(id) {
 				case CartaFrame:
-					img = ImageIO.read(new File("resources/carta_frame.png"));
+					in = this.getClass().getResourceAsStream("/resources/carta_frame.png");
+					if (in != null) {
+						img = ImageIO.read(in);
+					}
+					else {
+						img = ImageIO.read(new File("resources/carta_frame.png"));					
+					}
 					break;
 				case CartaFrameSelected:
-					img = ImageIO.read(new File("resources/carta_frame_selected.png"));
+					in = this.getClass().getResourceAsStream("/resources/carta_frame_selected.png");
+					if (in != null) {
+						img = ImageIO.read(in);
+					}
+					else {
+						img = ImageIO.read(new File("resources/carta_frame_selected.png"));					
+					}
+					break;
+				default:
 					break;
 				}
 				

@@ -1,3 +1,5 @@
+TASKS
+=====
 - correct display of names -> DONE 
 - correct positioning of names -> DONE, more or less
 - correct display of hand -> DONE
@@ -5,12 +7,21 @@
 - set timeout on sockets to ensure connection consistency
 - when cards in the main deck are finished, start taking from discarded -> DONE
 - when mus, discard at least one is mandatory
-- show vignettes when players perform actions
+- handle ORDAGOS
+- resolution of lances
+- show vignettes when players perform actions -> DONE
+- speech bubbles: show only one at a time -> DONE
+- general UI adjustments.
+
+
+
+POSSIBLE NEW FEATURES
+
 - si nadie envida, show power gallina!
 
 powers for version hardcore:
 
-gastar amarracos para comprar un poder:
+gastar amarrakos para comprar un poder:
 
 3 reemplazar una carta por otra de la baraja
 4 cambiar una carta ALEATORIA por otra ALEATORIA de otro jugador

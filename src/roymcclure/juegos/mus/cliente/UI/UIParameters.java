@@ -128,8 +128,8 @@ public class UIParameters {
 		return new Point(-1000,-1000);
 	}	
 	
-	// assuming that i am in RELATIVE position 2, what is the RELATIVE position of arg2?
-	public static byte positionFromPlayerPerspective(byte my_seat_id, byte position) {
+	// position ID from the player's perspective
+	public static byte relativePosition(byte my_seat_id, byte position) {
 		byte nrotations = (byte) (2 - my_seat_id);
 		byte calculatedPos = (byte) (position + nrotations);
 		if (calculatedPos < 0)

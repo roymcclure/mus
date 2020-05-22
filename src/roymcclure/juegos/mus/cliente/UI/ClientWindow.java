@@ -118,7 +118,10 @@ public class ClientWindow extends JFrame {
 		this.setLocation((p % 2 )* WIDTH,(p / 2)*HEIGHT/2);
 		//this.setLocation((desktop.width - WIDTH) / 2,(desktop.height - HEIGHT) / 2);
 		this.add(gameCanvas);
-		
+		JTextField chatTxtField = new JTextField();
+		chatTxtField.setSize(new Dimension(500,100));
+		chatTxtField.setLocation(20, 20);
+		this.add(chatTxtField);
 
 	}
 

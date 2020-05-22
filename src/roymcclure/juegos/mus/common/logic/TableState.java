@@ -18,14 +18,9 @@ import static roymcclure.juegos.mus.common.logic.Language.GamePhase.*;
 public class TableState implements Serializable {
 
 	/**
-	 * DATA THAT CHANGES ALONG THE GAME
+	 * THIS CLASS CONTAINS DATA THAT CAN CHANGE ALONG THE GAME
 	 */
 	private static final long serialVersionUID = -1307767440829066871L;
-
-	public void setPiedras_envidadas_ronda_actual(byte piedras_envidadas_ronda_actual) {
-		this.piedras_envidadas_ronda_actual = piedras_envidadas_ronda_actual;
-	}
-
 
 	private PlayerState[] clients;
 	private Baraja baraja;
@@ -285,26 +280,35 @@ public class TableState implements Serializable {
 	public byte getPiedras_envidadas_ronda_actual() {
 		return piedras_envidadas_ronda_actual;
 	}
+	
+	public void setPiedras_envidadas_ronda_actual(byte piedras_envidadas_ronda_actual) {
+		this.piedras_envidadas_ronda_actual = piedras_envidadas_ronda_actual;
+	}
 
 	public byte getId_ronda() {
 		return id_ronda;
 	}
 
-	public byte getTipo_Lance() {
+	public byte getGamePhase() {
 		return tipo_lance;
 	}
 
 	public boolean isSeatOccupied(int i) {
 		return !clients[i].getID().equals("");
 
-	}
-
-	
+	}	
 
 	public boolean isSeatEmpty(byte seat_id) {
 		return clients[seat_id].getID().equals("");
 	}
 
+	public boolean tienePares(int i) {
+		return pares[i];
+	}
+	
+	public boolean tieneJuego(int i) {
+		return juego[i];
+	}
 	
 	
 	////////////// ADDITIONAL BEHAVIOUR
@@ -363,18 +367,6 @@ public class TableState implements Serializable {
 
 	}
 
-
-
-
-	
-
-	// TODO
-	// for each of the clients
-	//    for each of the cards
-	//        if client wants to discard that card
-	//           if baraja has more than zero card
-	//              take card from baraja
-	//           otherwise take card from barajadescartes
 	public void repartir() {
 		try {
 			for (int i = 0; i<MAX_CLIENTS;i++) {
@@ -390,15 +382,11 @@ public class TableState implements Serializable {
 					else cartas[j] = clients[i].getCarta(j);
 				}
 				clients[i].setCartas(cartas);
-				// clients[i].unmarkAll();
 			}
 
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-
-		// si repartimos 16, wonderful.
-		// si no, tenemos que coger del montón de descartes
 
 	}
 
@@ -481,18 +469,22 @@ public class TableState implements Serializable {
 	}
 
 
-	public boolean isPostre(byte player_seat_id) {
+	public boolean isPostreEnSuEquipo(byte player_seat_id) {
 		if (getMano_seat_id()== player_seat_id)
 			return false;
 		else if (getMano_seat_id() == (player_seat_id + 1) % MAX_CLIENTS)
 			return false;
 		return true;
 	}
+	
+	public boolean isPostre(byte player_seat_id) {
+		return player_seat_id == TableState.previousTableSeatId(getMano_seat_id());
+	}
 
 
 	public void advanceLance() {
 		tipo_lance++;
-		if (tipo_lance==GamePhase.PARES) {
+		if (tipo_lance==GamePhase.PARES ) {
 			// fill the pares boolean array
 			for (int i = 0; i < MAX_CLIENTS; i++) {
 				if(clients[i].valorPares()!=TipoPares.NO_PAR) {
@@ -521,7 +513,7 @@ public class TableState implements Serializable {
 		// and odd is team west_east
 		if (i%2==0) {
 			if (piedras_acumuladas_en_apuesta == 0) {
-				if (this.getTipo_Lance()==JUEGO) {
+				if (this.getGamePhase()==JUEGO) {
 					piedras_norte_sur+=2;					
 				} else {
 					piedras_norte_sur+=1;
@@ -532,7 +524,7 @@ public class TableState implements Serializable {
 		}	
 		else {
 			if (piedras_acumuladas_en_apuesta == 0) {
-				if (this.getTipo_Lance()==JUEGO) {
+				if (this.getGamePhase()==JUEGO) {
 					piedras_oeste_este+=2;					
 				} else {
 					piedras_oeste_este+=1;
@@ -542,6 +534,23 @@ public class TableState implements Serializable {
 			}
 		}
 		piedras_acumuladas_en_apuesta = 0;
+	}
+	
+	// TODO: adjust functions. this depends if players talk clockwise or ccw
+	public static byte previousTableSeatId(byte seat_id) {
+		return (byte) ((seat_id + 1 == MAX_CLIENTS) ? 0 : (seat_id + 1 ));
+	}
+	
+	public static byte nextTableSeatId(byte seat_id) {
+		return (byte) ((seat_id - 1 == -1) ? MAX_CLIENTS - 1 : (seat_id - 1 ));
+	}
+	
+	public void resetForNewLance() {
+		byte n = 0;
+		setPiedras_acumuladas_en_apuesta(n);
+		setPiedras_envidadas_ronda_actual(n);
+		setJugador_debe_hablar(getMano_seat_id());
+		advanceLance();		
 	}
 
 }

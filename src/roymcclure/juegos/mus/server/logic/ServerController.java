@@ -35,6 +35,8 @@ public class ServerController implements Runnable{
 	private ConnectionJobsQueue[] connectionJobs;
 	private Object key;
 	private SrvMus server;
+	
+	private int acks_ronda_no_jugada = 0;
 
 	public ServerController(ControllerJobsQueue controllerJobsQueue, ConnectionJobsQueue[] connectionJobs, GameState gameState, TableState tableState, SrvMus server, Object key) {
 		this.gameState = gameState;
@@ -58,88 +60,7 @@ public class ServerController implements Runnable{
 			}
 		}
 	}
-
-	private void processJob(Job job) {
-		//System.out.println("Called processJob()");
-		// game state is modified by clickReceived and message received
-		if (job instanceof MessageJob) {
-			//System.out.println("Controller: processing ServerMessageJob");
-			MessageJob mj = (MessageJob) job;
-			if (isValidRequest(mj.getClientMessage(),mj.getThreadId())) {
-				updateGameStateWith(mj.getClientMessage(),mj.getThreadId());
-				// include thread_id in should be broadcasted?
-				// probably not
-				if (shouldBeBroadcasted(mj.getClientMessage()))
-					broadCastPlayerAction(mj.getClientMessage(), mj.getThreadId());				
-			}
-
-		} 
-	}
-
-	// TODO not all messages should not be broadcasted... but most should.
-	private boolean shouldBeBroadcasted(ClientMessage clientMessage) {
-		// do not broadcaste: REQUEST_GAME_STATE, REQUEST_SEAT
-		boolean eligible = !(clientMessage.getAction() == REQUEST_GAME_STATE || clientMessage.getAction() == REQUEST_SEAT); 
-		if (!eligible)
-			return false;
-		return true;
-	}
-
-	// checks preconditions for a valid request
-	private boolean isValidRequest(ClientMessage clientMessage, byte threadId) {
-		byte talking_seat_id = tableState.getJugador_debe_hablar();
-		byte request_player_seat_id = tableState.getSeatOf(gameState.getPlayerID(threadId));
-		boolean player_must_talk = talking_seat_id== request_player_seat_id;
-
-		// requests only acceptable when its the player's turn
-		switch(clientMessage.getAction()) {
-		case PlayerActions.MUS:			
-			return player_must_talk && tableState.getTipo_Lance()==GamePhase.MUS; 
-		case PlayerActions.DESCARTAR:
-			return tableState.getTipo_Lance() == DESCARTE; // everyone can talk at this point
-		case PASS: // one can pass only in your turn
-			// and can be done when others have envidado OR you should envidar but decide to pass instead
-			if (player_must_talk) {
-				switch(tableState.getTipo_Lance()) {
-				case GamePhase.CHICA:
-				case GamePhase.GRANDE:
-				case GamePhase.PARES:
-				case GamePhase.JUEGO:
-					return true;
-				}
-				break;
-			}
-		case ENVITE:
-			if (player_must_talk)
-				if (tableState.getTipo_Lance()==GRANDE || tableState.getTipo_Lance()==CHICA || tableState.getTipo_Lance()==PARES || tableState.getTipo_Lance()==JUEGO) {
-					return true;
-				}				
-			break;
-		case ACCEPT:
-			if (player_must_talk && tableState.getPiedras_envidadas_ronda_actual()>0)
-				return true;				
-			break;
-		case ORDAGO:
-			// TODO
-			break;
-		case CORTO_MUS:
-			if (player_must_talk && tableState.getTipo_Lance()==GamePhase.MUS) {
-				return true;
-			}				
-			break;
-		case HANDSHAKE:
-		case REQUEST_GAME_STATE: // a player can always request the game state
-		case REQUEST_SEAT: // a player can always request a seat.
-		case CLOSE_CONNECTION: // a player can always close the connection.
-			return true;
-		default:
-			return false;				
-
-		}
-
-		return false;
-	}
-
+	
 	private Job getJob() {
 		Job job;
 		synchronized(_controllerJobsQueue) {
@@ -158,6 +79,104 @@ public class ServerController implements Runnable{
 		return job;
 	}
 
+	private void processJob(Job job) {
+		//System.out.println("Called processJob()");
+		// game state is modified by clickReceived and message received
+		if (job instanceof MessageJob) {
+			//System.out.println("Controller: processing ServerMessageJob");
+			MessageJob mj = (MessageJob) job;
+			if (isValidRequest(mj.getClientMessage(),mj.getThreadId())) {
+				if (shouldBeBroadcasted(mj.getClientMessage()))
+					broadCastPlayerAction(mj.getClientMessage(), mj.getThreadId());
+				updateGameStateWith(mj.getClientMessage(),mj.getThreadId());
+				// include thread_id in should be broadcasted?
+				// probably not
+						
+			}
+
+		} 
+	}
+
+	// checks preconditions for a valid request
+	private boolean isValidRequest(ClientMessage clientMessage, byte threadId) {
+		byte talking_seat_id = tableState.getJugador_debe_hablar();
+		byte request_player_seat_id = tableState.getSeatOf(gameState.getPlayerID(threadId));
+		boolean player_must_talk = talking_seat_id== request_player_seat_id;
+
+		// requests only acceptable when its the player's turn
+		switch(clientMessage.getAction()) {
+		case PlayerActions.MUS:			
+			return player_must_talk && tableState.getGamePhase()==GamePhase.MUS; 
+		case PlayerActions.DESCARTAR:
+			return tableState.getGamePhase() == DESCARTE; // everyone can talk at this point
+		case PASS: // one can pass only in your turn
+			// and can be done when others have envidado OR you should envidar but decide to pass instead
+			if (player_must_talk) {
+				switch(tableState.getGamePhase()) {
+				case GamePhase.CHICA:
+				case GamePhase.GRANDE:
+				case GamePhase.PARES:
+				case GamePhase.JUEGO:
+					return true;
+				}
+				break;
+			}
+		case ENVITE:
+			if (player_must_talk)
+				if (tableState.getGamePhase()==GRANDE || tableState.getGamePhase()==CHICA || tableState.getGamePhase()==PARES || tableState.getGamePhase()==JUEGO) {
+					return true;
+				}				
+			break;
+		case ACCEPT:
+			if (player_must_talk && tableState.getPiedras_envidadas_ronda_actual()>0)
+				return true;				
+			break;
+		case ORDAGO:
+			// TODO
+			break;
+		case CORTO_MUS:
+			if (player_must_talk && tableState.getGamePhase()==GamePhase.MUS) {
+				return true;
+			}				
+			break;
+		case HANDSHAKE:
+		case REQUEST_GAME_STATE: // a player can always request the game state
+		case REQUEST_SEAT: // a player can always request a seat.
+		case CLOSE_CONNECTION: // a player can always close the connection.
+			return true;
+		default:
+			return false;				
+
+		}
+
+		return false;
+	}
+
+
+	// TODO not all messages should not be broadcasted... but most should.
+	private boolean shouldBeBroadcasted(ClientMessage clientMessage) {
+		// do not broadcaste: REQUEST_GAME_STATE, REQUEST_SEAT
+		boolean eligible = !(clientMessage.getAction() == REQUEST_GAME_STATE || clientMessage.getAction() == REQUEST_SEAT); 
+		if (!eligible)
+			return false;
+		return true;
+	}
+	
+	// broadcast content of cm to all players except the sender (the one in thread_id)
+	public void broadCastPlayerAction(ClientMessage cm, byte thread_id) {
+		for (byte i = 0; i < MAX_CLIENTS; i++) {
+			// we dont tell a player what they have just done!!
+			if(thread_id !=i)
+				sendPlayerAction(cm,i, gameState.getPlayerID(thread_id));
+		}		
+	}
+
+
+	private void sendPlayerAction(ClientMessage cm, byte thread_id, String playerID) {
+		ServerMessage sm = ServerMessage.forgeBroadCastMessage(cm, playerID);
+		postServerConnectionJob(sm, thread_id);
+	}
+	
 	// if this method was called then preconditions were met
 	// made sure in isValidRequest(...)
 	public synchronized void updateGameStateWith(ClientMessage cm, byte thread_id) {
@@ -322,7 +341,7 @@ public class ServerController implements Runnable{
 			// 		ver quien gana de todos
 			// else
 			byte piedras = tableState.getPiedras_envidadas_ronda_actual();
-			switch(tableState.getTipo_Lance()) {
+			switch(tableState.getGamePhase()) {
 			case GRANDE:
 				tableState.setPiedras_envidadas_a_grande(piedras);
 				break;
@@ -336,32 +355,43 @@ public class ServerController implements Runnable{
 				tableState.setPiedras_envidadas_a_juego(piedras);				
 				break;
 			}
-			byte n = 0;
-			tableState.setPiedras_acumuladas_en_apuesta(n);
-			tableState.setPiedras_envidadas_ronda_actual(n);
-			tableState.advanceLance();			
-			tableState.setJugador_debe_hablar(tableState.getMano_seat_id());
-			broadCastGameState();			
+
+			tableState.resetForNewLance();
+			broadCastGameState();
+			break;
+			
+		// this message is used so that when its not possible to play pares or juego,
+		// we wait for all players to communicate that
+		case PlayerActions.NO_SE_JUEGA_RONDA:
+			acks_ronda_no_jugada++;
+			if (acks_ronda_no_jugada == MAX_CLIENTS) {
+				acks_ronda_no_jugada = 0;
+				tableState.advanceLance();
+				broadCastGameState();
+			}
 			break;
 
 		case PlayerActions.PASS:
 			
-			if (tableState.isPostre(player_seat_id)) {
-				if (tableState.getPiedras_envidadas_ronda_actual()>0) {
-					//			give pot to the bidding team
+			byte piedrasEnvidadas = tableState.getPiedras_envidadas_ronda_actual(); 
+			
+			if (piedrasEnvidadas >0 ) {
+				if (tableState.isPostreEnSuEquipo(player_seat_id)) {
 					tableState.givePotTo(player_seat_id+1);
-				} 
-				tableState.advanceLance();
-				tableState.setJugador_debe_hablar(tableState.getMano_seat_id());
-				tableState.setPiedras_envidadas_ronda_actual((byte) 0);
+					tableState.resetForNewLance();					
+				} else {
+					byte sid = player_seat_id;
+					for (int i = 0; i<2;i++)
+						sid = TableState.nextTableSeatId(sid);
+					tableState.setJugador_debe_hablar(sid);
+				}
 			} else {
-				if (tableState.getPiedras_envidadas_ronda_actual()>0) {
-					tableState.setJugador_debe_hablar((byte)((player_seat_id + 2) % MAX_CLIENTS));
-				}
-				else {
-					tableState.advanceTalkingPlayer();
-				}
-			}
+				if (tableState.isPostre(player_seat_id)) {
+					tableState.resetForNewLance();					
+				} else {
+					tableState.setJugador_debe_hablar(TableState.nextTableSeatId(player_seat_id));
+				}			
+			}				
 			broadCastGameState();
 			break;
 
@@ -387,20 +417,6 @@ public class ServerController implements Runnable{
 	// sends a player the game state
 	private void sendGameState(byte thread_id) {
 		ServerMessage sm = ServerMessage.forgeStateMessage(gameState, tableState, gameState.getPlayerID(thread_id));
-		postServerConnectionJob(sm, thread_id);
-	}
-	
-	// broadcast content of cm to all players except the sender (the one in thread_id)
-	public void broadCastPlayerAction(ClientMessage cm, byte thread_id) {
-		for (byte i = 0; i < MAX_CLIENTS; i++) {
-			// we dont tell a player what they have just done!!
-			if(thread_id !=i)
-				sendPlayerAction(cm,i, gameState.getPlayerID(thread_id));
-		}		
-	}
-
-	private void sendPlayerAction(ClientMessage cm, byte thread_id, String playerID) {
-		ServerMessage sm = ServerMessage.forgeBroadCastMessage(cm, playerID);
 		postServerConnectionJob(sm, thread_id);
 	}
 	

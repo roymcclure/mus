@@ -16,6 +16,9 @@ public class Language {
 								REQUEST_GAME_STATE = 10,
 								REQUEST_SEAT = 11,
 								LEAVE_SEAT = 12,
+								HABLO_PARES = 13,
+								HABLO_JUEGO = 14,
+								NO_SE_JUEGA_RONDA = 15,
 								CLOSE_CONNECTION = 20;
 	
 	}
@@ -26,7 +29,7 @@ public class Language {
 									GRANDE = 2,
 									CHICA = 3,
 									PARES = 4,
-									JUEGO = 5,
+									JUEGO = 5,									
 									FIN_RONDA = 6; 
 	}
 	

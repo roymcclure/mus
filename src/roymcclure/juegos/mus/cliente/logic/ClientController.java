@@ -6,8 +6,10 @@ import roymcclure.juegos.mus.cliente.logic.jobs.*;
 import static roymcclure.juegos.mus.common.logic.Language.PlayerActions.*;
 import static roymcclure.juegos.mus.common.logic.Language.ButtonIndices.*;
 import static roymcclure.juegos.mus.common.logic.Language.MouseInputType.*;
+import static roymcclure.juegos.mus.common.logic.Language.GamePhase.*;
 
 import roymcclure.juegos.mus.common.logic.Language.GamePhase;
+import roymcclure.juegos.mus.common.logic.Language.PlayerActions;
 import roymcclure.juegos.mus.common.logic.jobs.*;
 import roymcclure.juegos.mus.common.network.*;
 
@@ -98,117 +100,7 @@ public class ClientController extends Thread {
 	private void mouseMoved(int x, int y) {
 		// we know for a fact that mouse entered or exited a card, so lets update state
 
-	}
-
-	private void clickReceived(int x, int y) {
-		// clicks are to be addressed when:
-		// 1. clicking on the "have a seat" button
-		// 2. clicking on the "stand up" button
-		// 3. click on a button from the menu
-		// 4. select/deselect a card
-
-
-		// if not seated, accept seat requests
-		if (ClientGameState.table().getSeatOf(ClientGameState.getPlayerID())==-1) {
-			byte seat = UIParameters.seatRequestWasClicked(x,y);
-			if (seat != -1) {
-				System.out.println("Client wishes to seat in " + seat);
-				// we request that seat from the server
-				postConnectionJob(REQUEST_SEAT, seat, ""); 
-			}
-		} else { 			// i am seated
-			byte my_seat_id =ClientGameState.table().getSeatOf(ClientGameState.getPlayerID());
-			
-			switch(ClientGameState.table().getTipo_Lance()) {
-			
-			
-			case GamePhase.DESCARTE:
-				int clickedCard = UIParameters.getCardPosUnderMouse(x, y);
-				if (clickedCard!=-1 && !me().isCommitedToDiscard()) {
-					boolean currentState = ClientGameState.getSelectedCard(clickedCard);
-					ClientGameState.setSelectedCard(clickedCard, !currentState);
-				} else if (UIParameters.getMenuClickedButton(1,x,y)==0) {
-					// clicked on "finished discard" button
-					System.out.println("cards selected as byte:"+ClientGameState.getSelectedCardsAsByte());
-					postConnectionJob(DESCARTAR,ClientGameState.getSelectedCardsAsByte(),"");
-				}
-				break;
-				
-				
-			case GamePhase.MUS:
-				if (my_seat_id== ClientGameState.table().getJugador_debe_hablar()) {
-					byte clicked_button = UIParameters.getMenuClickedButton(2,x,y);
-					switch(clicked_button) {
-					case BUTTON_MUS:
-						postConnectionJob(MUS, (byte) 0,"");
-						break;
-					case BUTTON_CORTO_MUS:
-						postConnectionJob(CORTO_MUS, (byte) 0,"");						
-						break;
-					}	
-				}
-				break;
-				
-			case GamePhase.GRANDE:
-			case GamePhase.CHICA:
-			case GamePhase.PARES:
-			case GamePhase.JUEGO:
-				if (my_seat_id== ClientGameState.table().getJugador_debe_hablar()) {
-					
-					byte clicked_button;
-					if (table().isOrdago_lanzado()) {
-						clicked_button = UIParameters.getMenuClickedButton(2,x,y);
-						switch(clicked_button) {
-						case BUTTON_ACEPTO_ORDAGO:
-							postConnectionJob(ACCEPT, (byte) 0,"");
-							break;
-						case BUTTON_ME_CAGO:
-							postConnectionJob(PASS, (byte) 0,"");						
-							break;
-						}						
-					} else if (table().getPiedras_envidadas_ronda_actual()==0){
-						clicked_button = UIParameters.getMenuClickedButton(4,x,y);
-						switch(clicked_button) {
-						case BUTTON_ENVIDAR_2:
-							postConnectionJob(ENVITE, (byte) 2,"");
-							break;
-						case BUTTON_ENVIDAR_5:
-							postConnectionJob(ENVITE, (byte) 5,"");							
-							break;
-						case BUTTON_ORDAGO:
-							postConnectionJob(ORDAGO, (byte) 0,"");
-							break;
-						case BUTTON_PASO:
-							postConnectionJob(PASS, (byte) 0,"");						
-							break;
-						}						
-					} else {
-						clicked_button = UIParameters.getMenuClickedButton(5,x,y);
-						System.out.println("Clicked button is:" + clicked_button);
-						switch(clicked_button) {
-						case BUTTON_ACEPTAR:
-							postConnectionJob(ACCEPT, (byte) 0,"");							
-							break;
-						case BUTTON_ENVIDAR_2:
-							postConnectionJob(ENVITE, (byte) 2,"");
-							break;
-						case BUTTON_ENVIDAR_5:
-							postConnectionJob(ENVITE, (byte) 5,"");							
-							break;
-						case BUTTON_ORDAGO:
-							postConnectionJob(ORDAGO, (byte) 0,"");
-							break;
-						case BUTTON_PASO:
-							postConnectionJob(PASS, (byte) 0,"");						
-							break;
-						}											
-					}
-				}
-				break;
-				
-			}			
-		}
-	}
+	}	
 
 	// we assume the client state has not changed between sending and receiving the message
 	// it shouldnt since state is changed ONLY after message is received.
@@ -220,14 +112,134 @@ public class ClientController extends Thread {
 			_handler.broadcastMsgToView(sm.getBroadCastMessage());
 		} else {
 			// update client game state
-			ClientGameState.updateWith(sm);			
+			ClientGameState.updateWith(sm);
+			if (sm.getTableState().getGamePhase()==PARES && ClientGameState.getPares_hablados()==0) {
+				// first time we enter into PARES, we each have to talk. first to talk is relativePosition(mano)
+				byte next_seat_id = UIParameters.relativePosition(my_seat_id(), table().getMano_seat_id());						
+				ClientMessage broadCastMessage = new ClientMessage(HABLO_PARES,next_seat_id,table().getClient(next_seat_id).getID());
+				_handler.broadcastMsgToView(broadCastMessage);
+				ClientGameState.setPares_hablados((byte) (ClientGameState.getPares_hablados() + 1));
+			}
+			else if (sm.getTableState().getGamePhase()==JUEGO) {
+				
+			} 
 		}
-			
+
 
 	}
 
 
+	private void clickReceived(int x, int y) {
+		// clicks are to be addressed when:
+		// 1. clicking on the "have a seat" button
+		// 2. clicking on the "stand up" button
+		// 3. click on a button from the menu
+		// 4. select/deselect a card
+		if (ClientGameState.isClickEnabled()) {
+			// if not seated, accept seat requests
+			if (ClientGameState.table().getSeatOf(ClientGameState.getPlayerID())==-1) {
+				byte seat = UIParameters.seatRequestWasClicked(x,y);
+				if (seat != -1) {
+					System.out.println("Client wishes to seat in " + seat);
+					// we request that seat from the server
+					postConnectionJob(REQUEST_SEAT, seat, ""); 
+				}
+			} else { 			// i am seated
+				byte my_seat_id =ClientGameState.table().getSeatOf(ClientGameState.getPlayerID());
 
+				switch(ClientGameState.table().getGamePhase()) {
+
+
+				case GamePhase.DESCARTE:
+					int clickedCard = UIParameters.getCardPosUnderMouse(x, y);
+					if (clickedCard!=-1 && !me().isCommitedToDiscard()) {
+						boolean currentState = ClientGameState.getSelectedCard(clickedCard);
+						ClientGameState.setSelectedCard(clickedCard, !currentState);
+					} else if (UIParameters.getMenuClickedButton(1,x,y)==0) {
+						// clicked on "finished discard" button
+						System.out.println("cards selected as byte:"+ClientGameState.getSelectedCardsAsByte());
+						postConnectionJob(DESCARTAR,ClientGameState.getSelectedCardsAsByte(),"");
+					}
+					break;
+
+
+				case GamePhase.MUS:
+					if (my_seat_id== ClientGameState.table().getJugador_debe_hablar()) {
+						byte clicked_button = UIParameters.getMenuClickedButton(2,x,y);
+						switch(clicked_button) {
+						case BUTTON_MUS:
+							postConnectionJob(PlayerActions.MUS, (byte) 0,"");
+							break;
+						case BUTTON_CORTO_MUS:
+							postConnectionJob(CORTO_MUS, (byte) 0,"");						
+							break;
+						}	
+					}
+					break;
+
+				case GamePhase.GRANDE:
+				case GamePhase.CHICA:
+				case GamePhase.PARES:
+				case GamePhase.JUEGO:
+					if (my_seat_id== ClientGameState.table().getJugador_debe_hablar()) {
+
+						byte clicked_button;
+						if (table().isOrdago_lanzado()) {
+							clicked_button = UIParameters.getMenuClickedButton(2,x,y);
+							switch(clicked_button) {
+							case BUTTON_ACEPTO_ORDAGO:
+								postConnectionJob(ACCEPT, (byte) 0,"");
+								break;
+							case BUTTON_ME_CAGO:
+								postConnectionJob(PASS, (byte) 0,"");						
+								break;
+							}						
+						} else if (table().getPiedras_envidadas_ronda_actual()==0){
+							clicked_button = UIParameters.getMenuClickedButton(4,x,y);
+							switch(clicked_button) {
+							case BUTTON_ENVIDAR_2:
+								postConnectionJob(ENVITE, (byte) 2,"");
+								break;
+							case BUTTON_ENVIDAR_5:
+								postConnectionJob(ENVITE, (byte) 5,"");							
+								break;
+							case BUTTON_ORDAGO:
+								postConnectionJob(ORDAGO, (byte) 0,"");
+								break;
+							case BUTTON_PASO:
+								postConnectionJob(PASS, (byte) 0,"");						
+								break;
+							}						
+						} else {
+							clicked_button = UIParameters.getMenuClickedButton(5,x,y);
+							System.out.println("Clicked button is:" + clicked_button);
+							switch(clicked_button) {
+							case BUTTON_ACEPTAR:
+								postConnectionJob(ACCEPT, (byte) 0,"");							
+								break;
+							case BUTTON_ENVIDAR_2:
+								postConnectionJob(ENVITE, (byte) 2,"");
+								break;
+							case BUTTON_ENVIDAR_5:
+								postConnectionJob(ENVITE, (byte) 5,"");							
+								break;
+							case BUTTON_ORDAGO:
+								postConnectionJob(ORDAGO, (byte) 0,"");
+								break;
+							case BUTTON_PASO:
+								postConnectionJob(PASS, (byte) 0,"");						
+								break;
+							}											
+						}
+					}
+					break;
+
+				}			
+			}			
+		}
+
+
+	}
 
 
 	private static Job getJob() {
