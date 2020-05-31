@@ -17,7 +17,10 @@ public class GameState implements Serializable {
 	private byte piedras_juego;
 	private byte juegos_vaca;
 	private byte vacas_partida;
-	
+	public static byte base_piedras_juego;
+	public static byte base_juegos_vaca;
+	public static byte base_vacas_partida;
+
 	
 	//  This here is indexed by thread_id. Players can therefore know the thread_id of the other players, but 
 	//  it really isn't relevant info to them, unless (maybe) they have evil stuff in mind.
@@ -29,6 +32,9 @@ public class GameState implements Serializable {
 	public GameState() {
 		player_ids = new String[MAX_CLIENTS];
 		this.gameState = WAITING_ALL_PLAYERS_TO_CONNECT;
+		this.piedras_juego = base_piedras_juego;
+		this.juegos_vaca = base_juegos_vaca;
+		this.vacas_partida = base_vacas_partida;
 	}
 
 	public GameState(byte piedras_juego, byte juegos_vaca, byte vacas_partida, String[] player_ids, byte gameState) {

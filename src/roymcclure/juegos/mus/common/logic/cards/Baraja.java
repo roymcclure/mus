@@ -59,6 +59,8 @@ public class Baraja implements Serializable {
 	}
 	
 	private static String numero(byte n) {
+		if (n==48 || n == 49)
+			return "XX";
 		n = (byte) (n % CARDS_PER_SUIT);
 		switch(n) {
 		case 0: return "AS";
@@ -75,7 +77,7 @@ public class Baraja implements Serializable {
 		case 1: return "COPAS";
 		case 2: return "ESPADAS";
 		case 3: return "BASTOS";
-		default: return "INDEFINIDO";
+		default: return "XX";
 		}
 	}
 	

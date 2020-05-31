@@ -7,9 +7,12 @@ import static roymcclure.juegos.mus.common.logic.Language.ServerGameState.*;
 
 import java.util.Random;
 
+import com.sun.org.glassfish.external.statistics.annotations.Reset;
+
 import roymcclure.juegos.mus.common.logic.*;
 import roymcclure.juegos.mus.common.logic.Language.GamePhase;
 import roymcclure.juegos.mus.common.logic.Language.PlayerActions;
+import roymcclure.juegos.mus.common.logic.cards.Jugadas;
 import roymcclure.juegos.mus.common.logic.jobs.*;
 import roymcclure.juegos.mus.common.network.ClientMessage;
 import roymcclure.juegos.mus.common.network.ServerMessage;
@@ -35,7 +38,7 @@ public class ServerController implements Runnable{
 	private ConnectionJobsQueue[] connectionJobs;
 	private Object key;
 	private SrvMus server;
-	
+
 	private int acks_ronda_no_jugada = 0;
 
 	public ServerController(ControllerJobsQueue controllerJobsQueue, ConnectionJobsQueue[] connectionJobs, GameState gameState, TableState tableState, SrvMus server, Object key) {
@@ -61,6 +64,12 @@ public class ServerController implements Runnable{
 		}
 	}
 	
+	/**
+	 * 
+	 * JOB RELATED FUNCTIONS
+	 * 
+	 */
+
 	private Job getJob() {
 		Job job;
 		synchronized(_controllerJobsQueue) {
@@ -90,25 +99,29 @@ public class ServerController implements Runnable{
 					broadCastPlayerAction(mj.getClientMessage(), mj.getThreadId());
 				updateGameStateWith(mj.getClientMessage(),mj.getThreadId());
 				// include thread_id in should be broadcasted?
-				// probably not
-						
+				// probably not the need for a broadcast is determined
+				// by the nature of the message not so much by who sends it				
 			}
-
 		} 
 	}
 
+	
 	// checks preconditions for a valid request
 	private boolean isValidRequest(ClientMessage clientMessage, byte threadId) {
 		byte talking_seat_id = tableState.getJugador_debe_hablar();
 		byte request_player_seat_id = tableState.getSeatOf(gameState.getPlayerID(threadId));
-		boolean player_must_talk = talking_seat_id== request_player_seat_id;
+		boolean player_must_talk = (talking_seat_id== request_player_seat_id);
 
 		// requests only acceptable when its the player's turn
 		switch(clientMessage.getAction()) {
+
 		case PlayerActions.MUS:			
-			return player_must_talk && tableState.getGamePhase()==GamePhase.MUS; 
+			return player_must_talk && tableState.getGamePhase()==GamePhase.MUS;
+
 		case PlayerActions.DESCARTAR:
 			return tableState.getGamePhase() == DESCARTE; // everyone can talk at this point
+
+		case ORDAGO:
 		case PASS: // one can pass only in your turn
 			// and can be done when others have envidado OR you should envidar but decide to pass instead
 			if (player_must_talk) {
@@ -121,23 +134,26 @@ public class ServerController implements Runnable{
 				}
 				break;
 			}
+
 		case ENVITE:
 			if (player_must_talk)
 				if (tableState.getGamePhase()==GRANDE || tableState.getGamePhase()==CHICA || tableState.getGamePhase()==PARES || tableState.getGamePhase()==JUEGO) {
 					return true;
 				}				
 			break;
-		case ACCEPT:
-			if (player_must_talk && tableState.getPiedras_envidadas_ronda_actual()>0)
+		case ACCEPT:			
+			if (player_must_talk && (tableState.isOrdago_lanzado() || tableState.getPiedras_envidadas_ronda_actual()>0))
 				return true;				
 			break;
-		case ORDAGO:
-			// TODO
-			break;
+
 		case CORTO_MUS:
 			if (player_must_talk && tableState.getGamePhase()==GamePhase.MUS) {
 				return true;
 			}				
+			break;
+		case NO_SE_JUEGA_RONDA:
+			if (tableState.getGamePhase()==JUEGO || tableState.getGamePhase() == PARES)
+				return true;
 			break;
 		case HANDSHAKE:
 		case REQUEST_GAME_STATE: // a player can always request the game state
@@ -156,12 +172,18 @@ public class ServerController implements Runnable{
 	// TODO not all messages should not be broadcasted... but most should.
 	private boolean shouldBeBroadcasted(ClientMessage clientMessage) {
 		// do not broadcaste: REQUEST_GAME_STATE, REQUEST_SEAT
-		boolean eligible = !(clientMessage.getAction() == REQUEST_GAME_STATE || clientMessage.getAction() == REQUEST_SEAT); 
+		boolean eligible = true;
+		if (clientMessage.getAction() == REQUEST_GAME_STATE)
+			eligible = false;
+		if (clientMessage.getAction() == REQUEST_SEAT)
+			eligible = false;
+		if (clientMessage.getAction() == NO_SE_JUEGA_RONDA)
+			eligible = false;
 		if (!eligible)
 			return false;
 		return true;
 	}
-	
+
 	// broadcast content of cm to all players except the sender (the one in thread_id)
 	public void broadCastPlayerAction(ClientMessage cm, byte thread_id) {
 		for (byte i = 0; i < MAX_CLIENTS; i++) {
@@ -176,9 +198,8 @@ public class ServerController implements Runnable{
 		ServerMessage sm = ServerMessage.forgeBroadCastMessage(cm, playerID);
 		postServerConnectionJob(sm, thread_id);
 	}
-	
-	// if this method was called then preconditions were met
-	// made sure in isValidRequest(...)
+
+
 	public synchronized void updateGameStateWith(ClientMessage cm, byte thread_id) {
 		// si cliente solicita información del mundo, realmente no hacemos gran cosa.
 		String playerID = "";
@@ -188,52 +209,11 @@ public class ServerController implements Runnable{
 		switch (cm.getAction()) {
 
 		case REQUEST_GAME_STATE:
-			// player can pass their name here
-			playerID = cm.getInfo();
-			synchronized(gameState) {
-				gameState.setPlayerID(playerID, thread_id);
-			}
-			System.out.println("SERVER: player " + playerID.toString() + " connected.");
-			sendGameState(thread_id);
-
+			updateOnRequestGameState(cm.getInfo(),thread_id);
 			break;
 
 		case REQUEST_SEAT:
-			// we try to seat the player in the requested seat
-			// we assume the player knows the game state so it doesnt really need
-			// a refresh at this point
-			System.out.println("PLAYER " + gameState.getPlayerID(thread_id) + " requested the SEAT " + cm.getQuantity());
-			byte requested_seat = cm.getQuantity();
-			if (tableState.takeAseat(requested_seat, gameState.getPlayerID(thread_id))) {
-				try {
-					//System.out.println("[SERVER Controller] a player took a seat. Notifying...");
-					synchronized(key) {
-						key.notify();
-					}
-					// this is made in order to simply tell the server that a player took a seat, in case
-					// it is waiting 
-
-				} catch (IllegalMonitorStateException e) {
-					// esta excepcion se puede lanzar si notificamos antes de llamar a key.wait()
-					// en srvmus. por ejemplo si estamos en WAITING_ALL_SEATED
-				}
-				if (tableState.allSeated()) {
-					// TODO: esto solo si no es un usuario que se había desconectado!!!!
-					tableState.getBaraja().barajar();
-					tableState.repartir();
-					// because we could be coming from a disconnect
-					if (tableState.getJugador_debe_hablar() == -1) {
-						Random random = new Random();
-						byte j = (byte)random.nextInt(MAX_CLIENTS);
-						tableState.setJugador_debe_hablar(j);
-						tableState.setMano_seat_id(j);
-					}										
-				}				
-				broadCastGameState();	
-			} else {
-				// TODO: not very sure of this...
-				sendGameState(thread_id);
-			}
+			updateOnRequestSeat(cm.getQuantity(), thread_id);			
 			break;
 
 		case CLOSE_CONNECTION:
@@ -253,26 +233,11 @@ public class ServerController implements Runnable{
 
 		case PlayerActions.MUS:
 
-			tableState.increaseTalkedPlayers();
-			// if this is the last guy having mus, go to DESCARTANDO game phase
-			if (tableState.allPlayersTalked()) {
-				tableState.setTipo_Lance(DESCARTE);
-				tableState.resetTalked();
-				synchronized(key) {
-					key.notify();
-				}
-			}
-			// advance turn to next player, and inform all players
-			// solo es mus corrido en la primera ronda
-			tableState.advanceTalkingPlayer();
-			if (tableState.getId_ronda()==0)
-				tableState.setMano_seat_id(tableState.getJugador_debe_hablar());
-			broadCastGameState();
-
+			updateOnMus();
 			break;
 
 		case PlayerActions.CORTO_MUS:
-			tableState.setTipo_Lance(GRANDE);
+			tableState.setGamePhase(GRANDE);
 			synchronized(key) {
 				key.notify();
 			}
@@ -284,121 +249,299 @@ public class ServerController implements Runnable{
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-			broadCastGameState();			
-
 			break;
 
 		case PlayerActions.DESCARTAR:
-			// get which cards he wants to discard and keep it in state
-			// if all players have chosen, deal cards
-			PlayerState ps = tableState.getClient(player_seat_id);
-			ps.setCommitedToDiscard(true);
-			byte descartes = cm.getQuantity();
-			ps.unmarkAll();
-			for (byte i = 0; i < CARDS_PER_HAND; i++) {
-				if (bitSet(i,descartes)) {					
-					ps.markForReplacement(i);	
-				}				
-			}
-			if (tableState.allPlayersCommitedToDiscard()) {
-				tableState.setTipo_Lance(GamePhase.MUS);
-				tableState.moveDiscarded();
-				tableState.uncommitToDiscard();
-				tableState.repartir();
-				broadCastGameState();
-			} else {
-				sendGameState(thread_id);
-			}
+			updateStateWithDescartar(player_seat_id, cm.getQuantity(), thread_id);
 			break;
 
 		case PlayerActions.ENVITE:
-			
-				// if its a new envite, add qty to piedras_envidadas_a_grande
-				if (tableState.getJugadores_hablado_en_turno_actual()==0) {
-					tableState.setPiedras_envidadas_ronda_actual(cm.getQuantity());
-					tableState.setPiedras_en_ultimo_envite(cm.getQuantity());
-				} else {
-					// alguien está envidando más
-					byte a_grande = tableState.getPiedras_envidadas_ronda_actual();
-					byte anterior = tableState.getPiedras_acumuladas_en_apuesta();
-					byte total = (byte)(anterior + tableState.getPiedras_en_ultimo_envite());
-					tableState.setPiedras_acumuladas_en_apuesta(total);
-					tableState.setPiedras_envidadas_ronda_actual((byte)(a_grande+ cm.getQuantity()));
-					tableState.setPiedras_en_ultimo_envite(cm.getQuantity());
-				}
-				// this property allows us to properly assign the pot in case of bid rejection
-				tableState.setUltimo_envidador(player_seat_id);				
-				// next person that should talk is the mano of the other team
-				byte mano_otro_equipo = tableState.getManoOtroEquipo(player_seat_id);
-				tableState.setJugador_debe_hablar(mano_otro_equipo);
-				tableState.increaseTalkedPlayers();
-				broadCastGameState();
-				break;
-				
-		case PlayerActions.ACCEPT:
-			// if ordago
-			// 		set_lance(final_de_ronda)
-			// 		ver quien gana de todos
-			// else
-			byte piedras = tableState.getPiedras_envidadas_ronda_actual();
-			switch(tableState.getGamePhase()) {
-			case GRANDE:
-				tableState.setPiedras_envidadas_a_grande(piedras);
-				break;
-			case CHICA:
-				tableState.setPiedras_envidadas_a_chica(piedras);				
-				break;
-			case PARES:
-				tableState.setPiedras_envidadas_a_pares(piedras);				
-				break;
-			case JUEGO:
-				tableState.setPiedras_envidadas_a_juego(piedras);				
-				break;
-			}
 
-			tableState.resetForNewLance();
-			broadCastGameState();
+			updateStateWithEnvite(player_seat_id, cm.getQuantity());
 			break;
-			
-		// this message is used so that when its not possible to play pares or juego,
-		// we wait for all players to communicate that
+
+		case PlayerActions.ACCEPT:
+
+			updateStateWithAccept();
+			break;
+
+			// this message is used so that when its not possible to play pares or juego,
+			// we wait for all players to communicate that
 		case PlayerActions.NO_SE_JUEGA_RONDA:
-			acks_ronda_no_jugada++;
-			if (acks_ronda_no_jugada == MAX_CLIENTS) {
-				acks_ronda_no_jugada = 0;
-				tableState.advanceLance();
-				broadCastGameState();
-			}
+			updateOnSkippingRound();
+			break;
+
+		case PlayerActions.ORDAGO:
+			updateStateWithOrdago();
 			break;
 
 		case PlayerActions.PASS:
-			
-			byte piedrasEnvidadas = tableState.getPiedras_envidadas_ronda_actual(); 
-			
-			if (piedrasEnvidadas >0 ) {
-				if (tableState.isPostreEnSuEquipo(player_seat_id)) {
-					tableState.givePotTo(player_seat_id+1);
-					tableState.resetForNewLance();					
-				} else {
-					byte sid = player_seat_id;
-					for (int i = 0; i<2;i++)
-						sid = TableState.nextTableSeatId(sid);
-					tableState.setJugador_debe_hablar(sid);
-				}
-			} else {
-				if (tableState.isPostre(player_seat_id)) {
-					tableState.resetForNewLance();					
-				} else {
-					tableState.setJugador_debe_hablar(TableState.nextTableSeatId(player_seat_id));
-				}			
-			}				
-			broadCastGameState();
+
+			updateStateWithPass();
 			break;
 
 		default:
 			break;
 
 		}
+		// tell other players what happened
+		if (cm.getAction()!=REQUEST_GAME_STATE && cm.getAction() != DESCARTAR) {
+			broadCastGameState();
+		}
+	}
+
+	/***
+	 * 
+	 * UPDATE STATE FUNCTIONS
+	 * 
+	 * 
+	 */
+	
+	
+	private void updateOnSkippingRound() {
+		System.out.println("LLEGO UN MSG NO SE JUEGA RONDA");
+		acks_ronda_no_jugada++;
+		if (acks_ronda_no_jugada == MAX_CLIENTS) {
+			System.out.println("LLEGARON LOS 4, PASAMOS A SIGUIENTE LANCE");				
+			acks_ronda_no_jugada = 0;
+			tableState.pasarASiguienteLance();
+		}
+		
+	}
+
+	private void updateOnMus() {
+		tableState.increaseTalkedPlayers();
+		// if this is the last guy having mus, go to DESCARTANDO game phase
+		if (tableState.allPlayersTalked()) {
+			tableState.setGamePhase(DESCARTE);
+			tableState.resetTalked();
+			synchronized(key) {
+				key.notify();
+			}
+		}
+		// advance turn to next player, and inform all players
+		// solo es mus corrido en la primera ronda
+		tableState.advanceTalkingPlayer();
+		if (tableState.getId_ronda()==0)
+			tableState.setMano_seat_id(tableState.getJugador_debe_hablar());
+		
+	}
+
+	private void updateOnRequestSeat(byte requested_seat, byte thread_id) {
+		// we try to seat the player in the requested seat
+		// we assume the player knows the game state so it doesnt really need
+		// a refresh at this point
+		System.out.println("PLAYER " + gameState.getPlayerID(thread_id) + " requested the SEAT " + requested_seat);
+		if (tableState.takeAseat(requested_seat, gameState.getPlayerID(thread_id))) {
+			try {
+				//System.out.println("[SERVER Controller] a player took a seat. Notifying...");
+				synchronized(key) {
+					key.notify();
+				}
+				// this is made in order to simply tell the server that a player took a seat, in case
+				// it is waiting 
+
+			} catch (IllegalMonitorStateException e) {
+				// esta excepcion se puede lanzar si notificamos antes de llamar a key.wait()
+				// en srvmus. por ejemplo si estamos en WAITING_ALL_SEATED
+			}
+			if (tableState.allSeated()) {
+				// TODO: esto solo si no es un usuario que se había desconectado!!!!
+				tableState.getBaraja().barajar();
+				tableState.repartir();
+				// because we could be coming from a disconnect
+				if (tableState.getJugador_debe_hablar() == -1) {
+					Random random = new Random();
+					byte j = (byte)random.nextInt(MAX_CLIENTS);
+					tableState.setJugador_debe_hablar(j);
+					tableState.setMano_seat_id(j);
+				}										
+			}				
+			broadCastGameState();	
+		} else {
+			// TODO: not very sure of this...
+			sendGameState(thread_id);
+		}		
+
+	}
+
+	private void updateOnRequestGameState(String playerID, byte thread_id) {
+		// player can pass their name here
+		synchronized(gameState) {
+			gameState.setPlayerID(playerID, thread_id);
+		}
+		server.log("SERVER: player " + playerID.toString() + " connected.");
+		sendGameState(thread_id);		
+	}
+
+	private void updateStateWithAccept() {
+		if (tableState.isOrdago_lanzado()) {
+			tableState.setGamePhase(FIN_RONDA);
+		} else {
+			byte piedras = tableState.getPiedras_envidadas_ronda_actual();
+			tableState.setPiedras_envidadas(tableState.getGamePhase(), piedras);
+			tableState.pasarASiguienteLance();
+		}		
+	}
+
+	private void updateStateWithDescartar(byte player_seat_id, byte descartes, byte thread_id) {
+		// get which cards he wants to discard and keep it in state
+		// if all players have chosen, deal cards
+		PlayerState ps = tableState.getClient(player_seat_id);
+		ps.setCommitedToDiscard(true);
+		ps.unmarkAll();
+		for (byte i = 0; i < CARDS_PER_HAND; i++) {
+			if (bitSet(i,descartes)) {					
+				ps.markForReplacement(i);	
+			}				
+		}
+		if (tableState.allPlayersCommitedToDiscard()) {
+			tableState.setGamePhase(GamePhase.MUS);
+			tableState.moveDiscarded();
+			tableState.uncommitToDiscard();
+			tableState.repartir();
+			broadCastGameState();
+		} else {
+			sendGameState(thread_id);
+		}
+
+	}
+
+	private void updateStateWithOrdago() {
+		tableState.setEnPaso(tableState.getGamePhase(), false);
+		tableState.setOrdago_lanzado(true);
+		// this must be done. if the ordago is rejected, we need to know
+		// the winner of the pot
+		tableState.setUltimo_envidador(tableState.getJugador_debe_hablar());
+		tableState.assignNextTalker();
+
+	}
+
+		
+
+	private void updateStateWithEnvite(byte player_seat_id, byte qtyEnvidada) {		
+		//TODO: chapucilla....
+		tableState.setEnPaso((byte) (tableState.getGamePhase()), false);
+		// if its a new envite, add qty to piedras_envidadas_a_grande
+		if (tableState.getJugadores_hablado_en_turno_actual()==0) {
+			tableState.setPiedras_envidadas_ronda_actual(qtyEnvidada);
+			tableState.setPiedras_en_ultimo_envite(qtyEnvidada);
+		} else {
+			// alguien está envidando más
+
+			// increase total bet
+			byte inc = tableState.getPiedras_envidadas_ronda_actual();
+			tableState.setPiedras_envidadas_ronda_actual((byte)(inc + qtyEnvidada));
+
+			// update pot
+			byte anterior = tableState.getPiedras_acumuladas_en_apuesta();
+			byte total = (byte)(anterior + tableState.getPiedras_en_ultimo_envite());
+			tableState.setPiedras_acumuladas_en_apuesta(total);
+
+			tableState.setPiedras_en_ultimo_envite(qtyEnvidada);
+		}
+
+		// this property allows us to properly assign the pot in case of bid rejection
+		tableState.setUltimo_envidador(player_seat_id);
+		tableState.assignNextTalker();	
+		tableState.increaseTalkedPlayers();
+
+	}
+
+	// world state is updated with the pass message from the player
+	private void updateStateWithPass() {
+
+		byte player_seat_id = tableState.getJugador_debe_hablar();
+		byte piedrasEnvidadas = tableState.getPiedras_envidadas_ronda_actual(); 
+		// current player pasa. entonces 
+		switch(tableState.getGamePhase()) {
+		case GRANDE:
+		case CHICA:
+			if (tableState.isOrdago_lanzado()) {
+				if (tableState.isPostreEnSuEquipo(player_seat_id)) {
+					tableState.givePotTo(player_seat_id+1);
+					tableState.pasarASiguienteLance();
+					tableState.advanceLance();					
+				} else {
+					tableState.setJugador_debe_hablar(tableState.opuesto(player_seat_id));
+				}
+			} else if (piedrasEnvidadas >0 ) {
+				// si estamos a pares o juego y yo era el único que podía hablar,
+				// damos pot y pasamos a siguiente lance
+				if (tableState.isPostreEnSuEquipo(player_seat_id)) {
+					tableState.givePotTo(player_seat_id+1);
+					tableState.pasarASiguienteLance();
+				} else {
+					tableState.setJugador_debe_hablar(tableState.opuesto(player_seat_id));
+				}
+			} else {
+				if (tableState.isPostre(player_seat_id)) {
+					tableState.pasarASiguienteLance();
+				} else {
+					tableState.setJugador_debe_hablar(TableState.nextTableSeatId(player_seat_id));
+				}			
+			}
+			break;
+		case PARES:
+			if (tableState.isOrdago_lanzado()) {
+				boolean miParejaTienePares = tableState.tienePares(tableState.opuesto(player_seat_id));
+				if (tableState.isPostreEnSuEquipo(player_seat_id) || !miParejaTienePares) {
+					tableState.givePotTo(player_seat_id+1);
+					tableState.pasarASiguienteLance();
+				} else {
+					tableState.setJugador_debe_hablar(tableState.opuesto(player_seat_id));
+				}
+			}else if (piedrasEnvidadas >0 ) {
+				// si estamos a pares o juego y yo era el único que podía hablar,
+				// damos pot y pasamos a siguiente lance
+				boolean miParejaTienePares = tableState.tienePares(tableState.opuesto(player_seat_id));
+				if (tableState.isPostreEnSuEquipo(player_seat_id) || !miParejaTienePares) {
+					tableState.givePotTo(player_seat_id+1);
+					tableState.pasarASiguienteLance();
+				} else {
+					tableState.setJugador_debe_hablar(tableState.opuesto(player_seat_id));
+				}
+			} else {
+				// yo paso y no hay ningún envite
+				// si soy el último jugador con pares pasamos al siguiente lance
+				// de lo contrario que hable el siguiente que tenga pares
+				if (tableState.isUltimoConPares(player_seat_id)) {
+					tableState.pasarASiguienteLance();
+				} else {
+					tableState.setJugador_debe_hablar(tableState.siguienteConPares(player_seat_id));
+				}
+			}			
+			break;
+		case JUEGO:
+			if (piedrasEnvidadas >0 ) {
+				// si estamos a pares o juego y yo era el único que podía hablar,
+				// damos pot y pasamos a siguiente lance
+				boolean miParejaTieneJuego = tableState.tieneJuego(tableState.opuesto(player_seat_id));
+				if (tableState.isPostreEnSuEquipo(player_seat_id) || !miParejaTieneJuego) {
+					tableState.givePotTo(player_seat_id+1);
+					tableState.pasarASiguienteLance();
+				} else {
+					tableState.setJugador_debe_hablar(tableState.opuesto(player_seat_id));
+				}
+			} else {
+				// yo paso y no hay ningún envite
+				// si soy el último jugador con juego pasamos al siguiente lance
+				// de lo contrario que hable el siguiente que tenga pares
+				if (tableState.isUltimoConJuego(player_seat_id)) {
+					tableState.pasarASiguienteLance();					
+				} else {
+					tableState.setJugador_debe_hablar(tableState.siguienteConJuego(player_seat_id));
+				}		
+			}						
+			break;
+		default:
+			break;
+		}
+
+
+
+
+
 	}
 
 	// TODO: in the controller? really?
@@ -413,13 +556,13 @@ public class ServerController implements Runnable{
 			sendGameState(i);
 		}
 	}
-	
+
 	// sends a player the game state
 	private void sendGameState(byte thread_id) {
 		ServerMessage sm = ServerMessage.forgeStateMessage(gameState, tableState, gameState.getPlayerID(thread_id));
 		postServerConnectionJob(sm, thread_id);
 	}
-	
+
 	private void postServerConnectionJob(ServerMessage sm, byte thread_id) {
 		ConnectionJob job = new ConnectionJob(sm);
 		job.setThreadId(thread_id);
@@ -431,4 +574,13 @@ public class ServerController implements Runnable{
 		}
 	}
 	
+	private void updateScore() {
+		if (tableState.vacaAlcanzada(gameState.getJuegos_vaca())) {
+			tableState.asignarVaca(gameState.getJuegos_vaca());
+			if (tableState.partidaAlcanzada(gameState.getVacas_partida())) {
+				tableState.asignarPartida(gameState.getVacas_partida());
+			}
+		}		
+	}	
+
 }

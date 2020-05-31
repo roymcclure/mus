@@ -22,6 +22,9 @@ public class GameCanvas extends Canvas {
 	private static final long serialVersionUID = -3672618905133807570L;
 	
 	public GameCanvas(ControllerJobsQueue jobs) {
+		
+		this.setMinimumSize(new Dimension(UIParameters.CANVAS_WIDTH, UIParameters.CANVAS_HEIGHT));
+		this.setMaximumSize(new Dimension(UIParameters.CANVAS_WIDTH, UIParameters.CANVAS_HEIGHT));		
 		this.addMouseListener(new MusMouseListener(jobs));
 		this.addMouseMotionListener(new MouseMotionListener() {
 			
@@ -76,7 +79,7 @@ public class GameCanvas extends Canvas {
 				
 			}
 		});
-		this.setSize(UIParameters.WIDTH, UIParameters.HEIGHT);
+		this.setSize(UIParameters.CANVAS_WIDTH, UIParameters.CANVAS_HEIGHT);
 	}
 
 	public void render(Handler handler) {
@@ -89,16 +92,16 @@ public class GameCanvas extends Canvas {
 		
 		g.setColor(Color.decode("#1E7E1E"));
 		
-		g.fillRect(0, 0, UIParameters.WIDTH, UIParameters.HEIGHT);
+		g.fillRect(0, 0, UIParameters.CANVAS_WIDTH, UIParameters.CANVAS_HEIGHT);
 		handler.render(g);
 		g.dispose();
 		bs.show();		
 	}
-	
+	/*
 	@Override
     public Dimension getPreferredSize() {
         return new Dimension(1024, 768);
-    }
+    }*/
 
 
 	

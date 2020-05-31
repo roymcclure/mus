@@ -1,75 +1,42 @@
-- si en mi thread de conexion se lanza la excepci√≥n porque hubo una desconexi√≥n, entonces tengo que hacer un invokelater de mostrar ventana de conexi√≥n, porque se perdi√≥. Como es modal, la ventana principal se bloquear√≠a.
-So far, so good.
-- De igual manera, la actualizaci√≥n del GUI (from GameDataPackets) se hace a trav√©s del invokelater.
+El servidor (SrvMus.java) se queda escuchando y lanza un hilo por cada cliente que se conecta. Dichos hilos son de la clase
+AtenderCliente y est·n almacenados en el array hilos[]. AtenderCliente guarda las colas de lectura y escritura para su cliente,
+que son utilizadas por dos threads, uno de lectura
+y otro de escritura. Ambas leen/escriben en el socket de manera simult·nea aprovechando que son full duplex y reenvÌan los 
+mensajes que llegan del cliente a la cola de trabajos para el controlador (ControllerJobs).
 
-- El flujo de datos es el siguiente:
-	* Se recibe el estado del juego desde el servidor en el hilo de conexi√≥n.
-	* El hilo desempaquetan los datos y se actualiza el estado del cliente.
-	* Esto se hace llamando a un m√©todo que mediante invokeLater lee el estado y actualiza.
+El Controlador del servidor (ServerController) analiza las peticiones de los clientes y modifica el estado de la partida
+(o no) en funciÛn de su validez y valor. Si la peticiÛn es v·lida, se comprueba primero si debe ser reenviada al resto
+de clientes porque tambiÈn les ataÒe, y a continuaciÛn se actualiza el estado de la partida.
 
+Todo esto sucede en:
 
-Siempre se empieza por el jugador norte, y en cada juego se va rotando.
+private void processJob(Job job) {
+		//System.out.println("Called processJob()");
+		// game state is modified by clickReceived and message received
+		if (job instanceof MessageJob) {
+			//System.out.println("Controller: processing ServerMessageJob");
+			MessageJob mj = (MessageJob) job;
+			if (isValidRequest(mj.getClientMessage(),mj.getThreadId())) {
+				if (shouldBeBroadcasted(mj.getClientMessage()))
+					broadCastPlayerAction(mj.getClientMessage(), mj.getThreadId());
+				updateGameStateWith(mj.getClientMessage(),mj.getThreadId());
+				// include thread_id in should be broadcasted?
+				// probably not the need for a broadcast is determined
+				// by the nature of the message not so much by who sends it				
+			}
+		} 
+	}
+	
+Por su parte los clientes son b·sicamente receptores de input que posiblemente ser· transformado en mensajes para el
+servidor, y renderizadores del estado de la partida. Tienen colas de trabajo igualmente y dos hilos para leer/escribir 
+el socket.
 
-- Cuando el jugador se conecta, se le transmite la ronda actual en la que estamos. De esa manera se sabe qui√©n empieza hablando.
+Los clientes despuÈs del envite a chica reciben un array diciendo quÈ jugadores tienen pares. Si los pares no son jugables,
 
-- Los datos que el servidor le manda al cliente son los siguiente:
+Cuando no se juegan pares, despuÈs de mostrar a todos los jugadores hablando cada cliente envÌa un mensaje NO_SE_JUEGA_RONDA
+al servidor. Cuando el servidor recibe tantos como el n˙mero m·ximo de clientes, pasa a la siguiente ronda.
 
-[estado_partida, ronda_id, tipo_ronda_id, piedras_jugador_norte, piedras_jugador_este, piedras_jugador_sur, piedras_jugador_oeste, juegos_pareja_norte_sur, juegos_pareja_este_oeste, vacas_pareja_norte_sur, vacas_pareja_este_oeste,
-carta_0_jugador_0, carta_1_jugador_0, carta_2_jugador_0, carta_3_jugador_0, carta_0_jugador_1, carta_1_jugador_1, carta_2_jugador_1, carta_3_jugador_1, carta_0_jugador_2, carta_1_jugador_2, carta_2_jugador_2, carta_3_jugador_2, 
-carta_0_jugador_3, carta_1_jugador_3, carta_2_jugador_3, carta_3_jugador_3, id_jugador_que_le_toca_hablar, piedras_envidadas_en_ronda_actual]
+En pares no se juega ronda si al menos uno de cada pareja no tiene pares.
 
-[estado_partida]
-
-0 = esperando que todos los sitios se llenen
-1 = jugando. aqui los jugadores hacen sus lances.
-2 = fin de la ronda. aqui es cuando se muestran todas las cartas, se suma el resultado de los lances, etc.
-
-[ronda_id]
-
-identifica el n√∫mero de la ronda. Se empieza en 0 y se llega hasta que una de las partes alcance el n√∫mero de vacas necesarias.
-
-[tipo_ronda_id]
-
-RONDA DE MUS: 0, RONDA GRANDE: 1, RONDA CHICA: 2, RONDA PARES: 3, RONDA JUEGO: 4
-
-jugador ID envida (1) CANTIDAD 
-si ya habia un envite, significa ENVIDA MAS
-jugador ID pasa (0)
-
-ej: [1, 0, 0, X] en la ronda de la GRANDE (1) jugador NORTE (0) pasa
-ej: [1, 1, 1, 4] en la ronda de la grande (1) el jugador ESTE (1) envida (1) cuatro piedras (4)
-ej: [1, 2, 2, X] en la ronda de la grande (1) el jugador SUR (2) echa √≥rdago
-
-
-
-
-DATOS QUE SE TRANSFIEREN CUANDO YA SE ESTA JUGANDO
-
-RONDA MUS: ID 0
-
-id_jugador_empieza: 0 inicialmente, con cada nuevo juego se va incrementando en 1 y se hace el % 4
-
-private int ronda_actual;
-
-private int 	RONDA_MUS = 0,
-		RONDA_GRANDE = 1,
-		RONDA_CHICA = 2,
-		RONDA_PARES = 3,
-		RONDA_JUEGO = 4;
-
-
-
-Los datos que el cliente le env√≠a al servidor son los siguientes:
-
-[accion_que_quiero_ejecutar, cantidad]
-
-[accion_que_quiero_ejecutar]
-
-0 : paso, si estamos en estado_partida 1 y ronda 0 significa que me doy mus, si estamos en estado 1 y cualquier otra ronda significa que no quiero ver el envite, si lo hay.
-1 : si ya hay un envite (piedras_envidadas_en_ronda_actual != 0), significa que envido m√°s. si no lo hay, envido el n√∫mero de piedras definido por cantidad.
-2 : acepto el envite
-3 : haya envite o no, significa √≥rdago. si es aceptado, se pasa directamente a estado 2, se pone un envite = numero de piedras que falten para hacer juego y solo se eval√∫a esa ronda.
-10: sentarme
-
-[cantidad]
-un n√∫mero entre 0 y 3 si acci√≥n era 10, representando el sitio en el que me quiero sentar
+En juego no se juega ronda en el mismo caso. Pero a diferencia de pares, si nadie tiene juego igualmente se juega, solo que
+al punto.  

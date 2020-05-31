@@ -21,24 +21,22 @@ public class ClientWindow extends JFrame {
 	private static final String DEFAULT_PLAYER = "Player";
 	private static final String DEFAULT_IP = "127.0.0.1";
 	private static final String DEFAULT_PORT = "5678";
-	
+
 	private static String player = DEFAULT_PLAYER;
 	private static String ip = DEFAULT_IP;
 	private static String port = "5678";
 
-	
+
 	JTextField txtUrl;
 	JTextField txtPort;
 	JTextField txtName;
-	
-	public static final int WIDTH = 1024, HEIGHT = 768;
 
 	JDialog connectionDialog;
 	public static ClientGameState clientGameState;
 	private GameCanvas gameCanvas;
 	private JFrame theWindow;
-	
-	
+
+
 	public ClientWindow(String title, String windowPosition) {
 		// init client game state
 		clientGameState = new ClientGameState();
@@ -51,17 +49,17 @@ public class ClientWindow extends JFrame {
 		Game game = new Game(clientGameState, controllerJobs, gameCanvas);
 
 		// Controller Thread
-		ClientController controller = new ClientController(game.getHandler(), controllerJobs, connectionJobs);
+		ClientController controller = new ClientController(game.getHandler(), controllerJobs, connectionJobs, game);
 
 		// connection & controller threads
 		ClientConnection.setConnectionJobsQueue(connectionJobs);
 		ClientConnection.setControllerJobsQueue(controllerJobs);
-		
+
 		setupFrame("MUS -- client", game, windowPosition);
 		createConnectionDialog();
 		// showConnectionDialog();
 		theWindow = this;
-	
+
 		controller.start();		
 		game.start();
 
@@ -86,9 +84,9 @@ public class ClientWindow extends JFrame {
 					}		
 					System.exit(0);
 
-		        }
-		    }
-			
+				}
+			}
+
 			@Override
 			public void windowOpened(java.awt.event.WindowEvent event) {
 				showConnectionDialog();
@@ -99,29 +97,35 @@ public class ClientWindow extends JFrame {
 
 	private void setupFrame(String title, Game game, String windowPosition) {
 		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		Dimension d = new Dimension(WIDTH,HEIGHT);
+		Dimension d = new Dimension(UIParameters.CANVAS_WIDTH,UIParameters.CANVAS_HEIGHT);
 		this.setTitle(title);
-		this.setMinimumSize(d);
-		this.setMaximumSize(d);
-		this.setPreferredSize(d);
-		this.pack();
-		this.setMaximumSize(d);
-		this.setSize(WIDTH, HEIGHT);
-		this.setLayout(new BorderLayout());
-		this.getContentPane().setPreferredSize(d);
-		this.getContentPane().setBackground(Color.decode("#1E7E1E"));
+
+
 
 
 		this.setResizable(false);
 		Dimension desktop = Toolkit.getDefaultToolkit().getScreenSize();
 		int p = Integer.parseInt(windowPosition);
-		this.setLocation((p % 2 )* WIDTH,(p / 2)*HEIGHT/2);
+		this.setLocation((p % 2 )* UIParameters.CANVAS_WIDTH,(p / 2)*UIParameters.CANVAS_HEIGHT/2);
 		//this.setLocation((desktop.width - WIDTH) / 2,(desktop.height - HEIGHT) / 2);
 		this.add(gameCanvas);
-		JTextField chatTxtField = new JTextField();
+		//this.setMinimumSize(d);
+		//this.setMaximumSize(d);
+		//this.setPreferredSize(d);
+
+		//this.setMaximumSize(d);
+		//this.setSize(WIDTH, HEIGHT);
+		this.getContentPane().setLayout(new FlowLayout());
+		this.getContentPane().setPreferredSize(d);
+		this.getContentPane().setSize(d);
+		this.getContentPane().setMinimumSize(d);
+		this.getContentPane().setMaximumSize(d);		
+		this.getContentPane().setBackground(Color.decode("#1E7E1E"));
+		this.pack();
+		/*JTextField chatTxtField = new JTextField();
 		chatTxtField.setSize(new Dimension(500,100));
 		chatTxtField.setLocation(20, 20);
-		this.add(chatTxtField);
+		this.getContentPane().add(chatTxtField);*/
 
 	}
 
@@ -132,7 +136,7 @@ public class ClientWindow extends JFrame {
 				System.exit(0);
 			}
 		});
-		Dimension d = new Dimension((int)(WIDTH * 0.50), (int)(HEIGHT * 0.20));
+		Dimension d = new Dimension((int)(UIParameters.CANVAS_WIDTH * 0.50), (int)(UIParameters.CANVAS_HEIGHT * 0.20));
 		connectionDialog.setSize(d);
 		//connectionDialog.setDefaultCloseOperation(0);
 
@@ -217,7 +221,7 @@ public class ClientWindow extends JFrame {
 			System.out.println("updating txtPort text with " + string);			
 			txtPort.setText(string);
 		}
-		
+
 	}
 
 }

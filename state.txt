@@ -1,0 +1,9 @@
+cartas_jugador = 0,0,2,3,4
+cartas_jugador = 1,12,14,15,16
+cartas_jugador = 2,24,26,27,28
+cartas_jugador = 3,36,38,39,40
+# 0 mus, 1 descarte, 2 grande, ... 5 juego, 6 fin ronda
+gamephase = 4
+juego = 0,0,0,0
+en_paso = 0,0,0,0
+pares = 0,0,0,0

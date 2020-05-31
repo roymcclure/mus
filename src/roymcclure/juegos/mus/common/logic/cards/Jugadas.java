@@ -7,13 +7,14 @@ import java.util.Iterator;
 import roymcclure.juegos.mus.common.logic.PlayerState;
 
 import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.*;
+import static roymcclure.juegos.mus.common.logic.Language.GamePhase.*;
 import static roymcclure.juegos.mus.common.logic.Language.TipoPares;
 
 public class Jugadas {
 	
 	// IMPORTANTE: jugador1 SIEMPRE es mano sobre jugador2 es postre, esto hay que tenerlo
 	// en cuenta a la hora de hacer las llamadas
-	public boolean ganaAGrande(PlayerState mano, PlayerState postre) throws Exception {
+	public static boolean ganaAGrande(PlayerState mano, PlayerState postre) {
 		if (mano.numeroCerdos() > postre.numeroCerdos()) {
 			return true;
 		} else if (mano.numeroCerdos() < postre.numeroCerdos()) {
@@ -21,25 +22,25 @@ public class Jugadas {
 		} else {
 			// empatados a cerdos. carta más alta.
 			// creamos copia de ambas manos
-			ArrayList<Carta> tempManoJugador1 = mano.getMano();
-			ArrayList<Carta> tempManoJugador2 = postre.getMano();
+			ArrayList<Carta> copiaManoJugador1 = mano.getMano();
+			ArrayList<Carta> copiaManoJugador2 = postre.getMano();
 			// eliminamos referencias a cerdos de ambas manos
-			this.eliminarCerdos(tempManoJugador1);
-			this.eliminarCerdos(tempManoJugador2);			
+			eliminarCerdos(copiaManoJugador1);
+			eliminarCerdos(copiaManoJugador2);			
 			// con lo que resta, vamos comparando la carta mas alta
 
 			
-			while (!tempManoJugador1.isEmpty() && !tempManoJugador2.isEmpty() && 
-				(Jugadas.cartaMasAlta(tempManoJugador1).valor() == 
-						Jugadas.cartaMasAlta(tempManoJugador2).valor())) {
-				tempManoJugador1.remove(Jugadas.cartaMasAlta(tempManoJugador1));
-				tempManoJugador2.remove(Jugadas.cartaMasAlta(tempManoJugador2));				
+			while (!copiaManoJugador1.isEmpty() && !copiaManoJugador2.isEmpty() && 
+				(Jugadas.cartaMasAlta(copiaManoJugador1).valor() == 
+						Jugadas.cartaMasAlta(copiaManoJugador2).valor())) {
+				copiaManoJugador1.remove(Jugadas.cartaMasAlta(copiaManoJugador1));
+				copiaManoJugador2.remove(Jugadas.cartaMasAlta(copiaManoJugador2));				
 			}
 			
 			// ambas manos vacias == tenian misma jugada, por tanto gana la mano
-			if ((tempManoJugador1.size() == 0) && (tempManoJugador2.size()==0)) {
+			if ((copiaManoJugador1.size() == 0) && (copiaManoJugador2.size()==0)) {
 				return true;
-			} else if (cartaMasAlta(tempManoJugador1).valor() < cartaMasAlta(tempManoJugador2).valor()) {
+			} else if (cartaMasAlta(copiaManoJugador1).valor() < cartaMasAlta(copiaManoJugador2).valor()) {
 				return false;
 			} else {
 				return true;
@@ -49,7 +50,7 @@ public class Jugadas {
 	
 	// IMPORTANTE: jugador1 SIEMPRE es mano sobre jugador2 es postre, esto hay que tenerlo
 	// en cuenta a la hora de hacer las llamadas
-	public boolean ganaAChica(PlayerState mano, PlayerState postre) throws Exception {
+	public static boolean ganaAChica(PlayerState mano, PlayerState postre)  {
 		if (mano.numeroPitos() > postre.numeroPitos()) {
 			return true;
 		} else if (mano.numeroPitos() < postre.numeroPitos()) {
@@ -57,25 +58,26 @@ public class Jugadas {
 		} else {
 			// empatados a pitos. carta más baja.
 			// creamos copia de ambas manos
-			ArrayList<Carta> tempManoJugador1 = mano.getMano();
-			ArrayList<Carta> tempManoJugador2 = postre.getMano();
+			ArrayList<Carta> copiaManoJugador1 = mano.getMano();
+			ArrayList<Carta> copiaManoJugador2 = postre.getMano();
 			// eliminamos referencias a pitos de ambas manos
-			this.eliminarPitos(tempManoJugador1);
-			this.eliminarPitos(tempManoJugador2);			
+			eliminarPitos(copiaManoJugador1);
+			eliminarPitos(copiaManoJugador2);			
 			// con lo que resta, vamos comparando la carta mas alta
 
-			while (!tempManoJugador1.isEmpty() && !tempManoJugador2.isEmpty() && 
-				Jugadas.cartaMasBaja(tempManoJugador1).valor() == 
-						Jugadas.cartaMasBaja(tempManoJugador2).valor()) {
-				tempManoJugador1.remove(Jugadas.cartaMasBaja(tempManoJugador1));
-				tempManoJugador2.remove(Jugadas.cartaMasBaja(tempManoJugador2));				
+			while (!copiaManoJugador1.isEmpty() && !copiaManoJugador2.isEmpty() && 
+				Jugadas.cartaMasBaja(copiaManoJugador1).valor() == 
+						Jugadas.cartaMasBaja(copiaManoJugador2).valor()) {
+				copiaManoJugador1.remove(Jugadas.cartaMasBaja(copiaManoJugador1));
+				copiaManoJugador2.remove(Jugadas.cartaMasBaja(copiaManoJugador2));				
 			}
 
 			// ambas manos vacias == tenian misma jugada, por tanto gana la mano
-			if ((tempManoJugador1.size() == 0) && (tempManoJugador2.size()==0)) {
+			// TODO: revisar, esto no bien wei
+			if ((copiaManoJugador1.size() == 0) && (copiaManoJugador2.size()==0)) {
 				System.out.println("ambas manos vacias");
 				return true;
-			} else if (cartaMasBaja(tempManoJugador1).valor() > cartaMasBaja(tempManoJugador2).valor()){
+			} else if (cartaMasBaja(copiaManoJugador1).valor() > cartaMasBaja(copiaManoJugador2).valor()){
 				System.out.println("carta más baja de jugador 1 tiene mayor valor que carta mas baja de jugador 2");
 				return false;
 			} else {
@@ -85,7 +87,7 @@ public class Jugadas {
 		}
 	}	
 
-	public boolean ganaAPares(PlayerState mano, PlayerState postre) throws Exception {
+	public static boolean ganaAPares(PlayerState mano, PlayerState postre) {
 		boolean ret = false;
 		// valor duples=4 medias=3 pares=2
 		if (mano.valorPares() == TipoPares.DUPLES) {
@@ -127,7 +129,7 @@ public class Jugadas {
 		return ret;
 	}
 
-	public boolean ganaJuego(PlayerState mano, PlayerState postre) throws Exception {
+	public static boolean ganaJuego(PlayerState mano, PlayerState postre) {
 		// TODO: 31 real?
 		if (mano.valorJuego() == 31) {
 			return true;
@@ -141,20 +143,20 @@ public class Jugadas {
 	}
 
 	// elimina los cerdos de una mano para hacer cálculos
-	private void eliminarCerdos(ArrayList<Carta> mano) {
+	private static void eliminarCerdos(ArrayList<Carta> mano) {
 
 		Iterator<Carta> iter = mano.iterator();
 
 		while (iter.hasNext()) {
 			Carta c = iter.next();
 			byte n = (byte) (c.getId() % CARDS_PER_SUIT);
-			if (n==2 || n == 3)
+			if (n==2 || n == 11)
 				iter.remove();
 		}
 	}
 
 	// elimina los pitos de una mano para hacer cálculos
-	private void eliminarPitos(ArrayList<Carta> mano) {
+	private static void eliminarPitos(ArrayList<Carta> mano) {
 
 		Iterator<Carta> iter = mano.iterator();
 
@@ -166,39 +168,52 @@ public class Jugadas {
 		}
 	}	
 
-
 	public static Carta	cartaMasAlta(ArrayList<Carta> mano) {
-		int valor_mas_alto = -1;
+		byte valor_mas_alta = -1;
 		Carta masAlta = null;
 		for (Carta c : mano) {
-			byte valor = (byte) (c.getId() % CARDS_PER_SUIT);
-			if (valor > valor_mas_alto) {
+			byte valor = 0;
+			if (c.isCerdo()) {
+				valor = 11;
+			} else if (c.isPito()) {
+				valor = 1;
+			} else {
+				valor = (byte) (c.getId() % CARDS_PER_SUIT);
+			}
+			if (valor > valor_mas_alta) {
 				masAlta = c;
-				valor_mas_alto = valor;
 			}
 		}
 		return masAlta;
 	}
-
+	
 	public static Carta	cartaMasBaja(ArrayList<Carta> mano) {
-		int valor_mas_bajo = CARDS_PER_SUIT;
+		byte valor_mas_baja = (byte) 255;
 		Carta masBaja = null;
 		for (Carta c : mano) {
-			byte valor = (byte) (c.getId() % CARDS_PER_SUIT);
-			if (valor < valor_mas_bajo) {
+			byte valor = 0;
+			if (c.isCerdo()) {
+				valor = 11;
+			} else if (c.isPito()) {
+				valor = 1;
+			} else {
+				valor = (byte) (c.getId() % CARDS_PER_SUIT);
+			}
+			if (valor < valor_mas_baja) {
 				masBaja = c;
-				valor_mas_bajo = valor;
 			}
 		}
 		return masBaja;
-	}    
+	}	
+
+ 
 
 	/* ordena una copia de ambas manos ascendente
      * y devuelve true en el momento en el que la mano1 tenga
      * una carta con un valor más alto en la misma posición que mano2
      * o ambas manos son idénticas. 
      */
-    public static boolean ordenaYcompara(PlayerState mano1, PlayerState mano2) throws Exception {
+    public static boolean ordenaYcompara(PlayerState mano1, PlayerState mano2) {
 
     	ArrayList<Carta> primero = mano1.getMano();
 		ArrayList<Carta> segundo = mano2.getMano();
@@ -222,6 +237,36 @@ public class Jugadas {
 		return true;
 
     }
+
+	public static byte valorEnPiedrasMano(byte lance, PlayerState cliente) {
+		switch(lance) {
+		case PARES:
+			return Jugadas.valorEnPiedrasPares(cliente);
+		case JUEGO:
+			return Jugadas.valorEnPiedrasJuego(cliente);			
+		}
+		return 0;
+	}
+
+	// solo si hay juego
+	private static byte valorEnPiedrasJuego(PlayerState cliente) {
+		if (cliente.valorJuego()==31)
+			return 3;
+		else if (cliente.valorJuego()>31) {
+			return 2;
+		}
+		return 0;
+	}
+
+	private static byte valorEnPiedrasPares(PlayerState cliente) {
+		switch(cliente.valorPares()) {
+		case DUPLES: return 3;
+		case MEDIAS: return 2;
+		case PAR: return 1;
+		case NO_PAR: return 0;
+		}
+		return 0;		
+	}
 
     
 }

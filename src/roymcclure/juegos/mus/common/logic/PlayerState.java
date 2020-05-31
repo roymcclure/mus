@@ -28,7 +28,7 @@ public class PlayerState implements Serializable {
 	// equipo al que pertenece es implícito. site_id in [0,2] es equipo norte/sur, else este/oeste
 	// las piedras, juego y etc no va aqui. pertenece a gameState
 	// el conteo tb es implícito. se contean siempre jugadores en 0, 1
-	
+
 	public boolean isCommitedToDiscard() {
 		return commitedToDiscard;
 	}
@@ -72,11 +72,11 @@ public class PlayerState implements Serializable {
 	public String getID() {
 		return playerID;
 	}
-	
+
 	public void setID(String id) {
 		playerID = id;
 	}
-	
+
 	public String getName() {
 		if (playerID.contains(":")) {
 			return playerID.substring(0, playerID.indexOf(':'));			
@@ -106,126 +106,120 @@ public class PlayerState implements Serializable {
 
 	public void markForReplacement(byte i) {
 		reemplazar[i] = true;
-		
+
 	}
 
 	public void unmarkAll() {
 		for (int i = 0; i< CARDS_PER_HAND; i++) {
 			reemplazar[i] = false;
 		}
-		
+
 	}
-	
+
 	public byte numeroCerdos() {
 		byte cerdos = 0;
 		for (int i = 0; i < CARDS_PER_HAND; i++) {
-			if (Carta.isCerdo(cartas[i].getId()))
-					cerdos++;
+			if (cartas[i].isCerdo())
+				cerdos++;
 		}
 		return cerdos;
 	}
 
-	// legacy
+	// for legacy compatibility
 	public ArrayList<Carta> getMano() {
 		ArrayList<Carta> ret = new ArrayList<Carta>();
 		for (int i = 0; i < CARDS_PER_HAND; i++) {
 			ret.add(this.getCarta(i));
 		}
-		return null;
+		return ret;
 	}
 
 	public int numeroPitos() {
 		byte pitos = 0;
 		for (int i = 0; i < CARDS_PER_HAND; i++) {
-			if (Carta.isPito(cartas[i].getId()))
-					pitos++;
+			if (cartas[i].isPito())
+				pitos++;
 		}
 		return pitos;
 	}
 
 	public TipoPares valorPares() {
 
-    	// we only want the values. so we get rid of the palo
-    	// so we can use the frequency method later
-    	ArrayList<Integer> mano = new ArrayList<Integer>();
+		// we only want the values. so we get rid of the palo
+		// so we can use the frequency method later
+		ArrayList<Integer> mano = new ArrayList<Integer>();
 
-    	for (int i= 0; i <CARDS_PER_HAND; i++) {
-    		if (cartas[i]!= null)
-    			if (cartas[i].valorPares()==1) {
-    				mano.add(1);	
-    			} else if (cartas[i].valorPares()==2) {
-    				mano.add(10);						
-    			} else {
-    				mano.add((int)cartas[i].valorPares());	
-    			}
-    	}
+		for (int i= 0; i <CARDS_PER_HAND; i++) {
+			if (cartas[i]!= null)
+				mano.add((int) cartas[i].valorPares());
+		}
 
-    	// in another arraylist we will store frequency of 
-    	// elements
-    	// possibilities: {1, 1, 1, 1}, {2,1,1},{3,1},{2,2},{4}
+		// in another arraylist we will store frequency of 
+		// elements
+		// possibilities: {1, 1, 1, 1}, {2,1,1},{3,1},{2,2},{4}
 
 
-    	ArrayList<Integer> conjuntoPares = new ArrayList<Integer>();    	    	
-    	ArrayList<Integer> yaLeidos = new ArrayList<Integer>();
+		ArrayList<Integer> conjuntoPares = new ArrayList<Integer>();    	    	
+		ArrayList<Integer> yaLeidos = new ArrayList<Integer>();
 
-    	for (int v : mano) {
-    		if (!yaLeidos.contains(v)) {
-    			System.out.println("añadiendo conjunto:" + Collections.frequency(mano, v));
-    			conjuntoPares.add(Collections.frequency(mano, v));
-    			yaLeidos.add(v);
-    		}
-
-
-    	}
+		for (int v : mano) {
+			if (!yaLeidos.contains(v)) {
+				System.out.println("añadiendo conjunto:" + Collections.frequency(mano, v));
+				conjuntoPares.add(Collections.frequency(mano, v));
+				yaLeidos.add(v);
+			}
 
 
-    	if ((conjuntoPares.get(0)==2 && conjuntoPares.get(1)==2) || (conjuntoPares.get(0)==4)) {
-    		return TipoPares.DUPLES;
-    	} 
-    	else
-    		if ((conjuntoPares.get(0)==3 && conjuntoPares.get(1)==1) || (conjuntoPares.get(0)==1 && conjuntoPares.get(1)==3)) {
-    			return TipoPares.MEDIAS;
-    		}
-    		else
-    			if ((conjuntoPares.get(0)==2) || (conjuntoPares.get(1)==2) || (conjuntoPares.get(2)==2)) {
-    				return TipoPares.PAR;
-    			}
-    			else
-    				return TipoPares.NO_PAR;
-    }
-	
-    public int valorJuego() {
-    	int valor = 0;
+		}
+
+
+		if ((conjuntoPares.get(0)==2 && conjuntoPares.get(1)==2) || (conjuntoPares.get(0)==4)) {
+			return TipoPares.DUPLES;
+		} 
+		else
+			if ((conjuntoPares.get(0)==3 && conjuntoPares.get(1)==1) || (conjuntoPares.get(0)==1 && conjuntoPares.get(1)==3)) {
+				return TipoPares.MEDIAS;
+			}
+			else
+				if ((conjuntoPares.get(0)==2) || (conjuntoPares.get(1)==2) || (conjuntoPares.get(2)==2)) {
+					return TipoPares.PAR;
+				}
+				else
+					return TipoPares.NO_PAR;
+	}
+
+	public int valorJuego() {
+		int valor = 0;
 		for (int i = 0; i < CARDS_PER_HAND; i++) {
 			valor+=cartas[i].valor();			
 		}
-    	return valor;
-    }
-	
+		return valor;
+	}
+
 	public Carta getCartaByCount(int n) {
-    	if ((n > CARDS_PER_HAND ) || n < 1) {
-    		throw new IllegalArgumentException();
-    	}
-    	// lets make it simple
-    	// array of four integers, store in each index freq of the card
-    	// return first pos with that freq
-    	int[] frequency = new int[4];
-    	for (int i=0;i<CARDS_PER_HAND;i++) {
-    		frequency[i] = 0;
-    	}
-    	for (int i=0;i<CARDS_PER_HAND;i++) {
-    		int valorActual = cartas[i].valor();
-    		for (int j=0;j<CARDS_PER_HAND;j++) {
-    			if (cartas[j].valor() == valorActual) {
-    				frequency[i]++;
-    			}
-    		}
-    	}
-    	for (int i = 0; i<CARDS_PER_HAND; i++) {
-    		if (frequency[i] == n)
-    			return cartas[i];
-    	}
-    	return null;
-    }
+		if ((n > CARDS_PER_HAND ) || n < 1) {
+			throw new IllegalArgumentException();
+		}
+		// lets make it simple
+		// array of four integers, store in each index freq of the card
+		// return first pos with that freq
+		int[] frequency = new int[4];
+		for (int i=0;i<CARDS_PER_HAND;i++) {
+			frequency[i] = 0;
+		}
+		for (int i=0;i<CARDS_PER_HAND;i++) {
+			int valorActual = cartas[i].valor();
+			for (int j=0;j<CARDS_PER_HAND;j++) {
+				if (cartas[j].valor() == valorActual) {
+					frequency[i]++;
+				}
+			}
+		}
+		for (int i = 0; i<CARDS_PER_HAND; i++) {
+			if (frequency[i] == n)
+				return cartas[i];
+		}
+		return null;
+	}
 
 }

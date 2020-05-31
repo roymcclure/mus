@@ -82,7 +82,10 @@ public class ClientMessage implements Serializable {
 			break;
 		case Language.PlayerActions.DESCARTAR:
 			content += "ACTION: DESCARTAR\n";
-			break;			
+			break;
+		case Language.PlayerActions.NO_SE_JUEGA_RONDA:
+			content += "ACTION: NO SE JUEGA RONDA!\n";			
+			break;
 		default:
 			content += "ACTION: UNKNOWN TYPE!!!\n";
 			break;

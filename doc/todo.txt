@@ -1,21 +1,43 @@
-TASKS
-=====
-- correct display of names -> DONE 
-- correct positioning of names -> DONE, more or less
-- correct display of hand -> DONE
-- correct positioning of hands -> WIP
-- set timeout on sockets to ensure connection consistency
-- when cards in the main deck are finished, start taking from discarded -> DONE
+FINIShED
+========
+- correct display of names 
+- correct display of hand
+- correct positioning of hands
+- when cards in the main deck are finished, start taking from discarded
 - when mus, discard at least one is mandatory
-- handle ORDAGOS
 - resolution of lances
-- show vignettes when players perform actions -> DONE
-- speech bubbles: show only one at a time -> DONE
-- general UI adjustments.
+- show vignettes when players perform actions
+- speech bubbles: show only one at a time
+- solo puede jugar quien tenga pares o juego en esas rondas
+- dibujar piedras en la mesa
+- general UI adjustments, cards west-east should read properly
+
+TO FINISH
+=========
+
+- resolution of round (point assignment, game assignment, cow assignment, winner assignment)
+- handle ORDAGOS *
+- set timeout on sockets to ensure connection consistency
+- handle client connection close gracefully
+- do not accept more than one [NO_SE_JUEGA_RONDA] from the same client. (otherwise a player could make the server skip the lance altogether.)
+- jugar al punto!
+- implementar patrón observer
+- animación repartir cartas
+ 
 
 
+BUGS
+====
+
+- randomly a client will not update the view on initial connection.
+- exception thrown in 
+- solution: the exception is raised when the client tries to draw the names of the clients BEFORE
+a packet from the server with table info has arrived, therefore throwing an exception since table is null)
+fix: only update the view if our states are not null (meaning we update with the last info from the server)
+- name in east not rendered in right position
 
 POSSIBLE NEW FEATURES
+
 
 - si nadie envida, show power gallina!
 
@@ -23,12 +45,12 @@ powers for version hardcore:
 
 gastar amarrakos para comprar un poder:
 
-3 reemplazar una carta por otra de la baraja
-4 cambiar una carta ALEATORIA por otra ALEATORIA de otro jugador
-10 hacer que otro jugador se descarte de cartas que no queria
-10 mirar las cartas de otro jugador
+- reemplazar una carta por otra de la baraja
+- cambiar una carta ALEATORIA por otra ALEATORIA de otro jugador
+- hacer que otro jugador se descarte de cartas que no queria
+- mirar las cartas de otro jugador
+- bloquear el mus/no mus de otro jugador
+- coger un jugador aleatorio, una cantidad aleatoria de sus piedras, y dársela a otro jugador aleatorio
 
-SOLO PUEDES COMPRAR UN PODER SI ESAS PIEDRAS LAS GANASTE ENVIDANDO TU!
+SOLO PUEDES COMPRAR UN PODER SI ESAS PIEDRAS LAS GANASTE ENVIDANDO TU?
  (Y SI ENVIDASTE CON LAS CARTAS DEL OTRO???? XDDDDDDD)
- 
- 

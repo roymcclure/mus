@@ -1,5 +1,8 @@
 package roymcclure.juegos.mus.server.logic;
 
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.SocketException;
@@ -10,8 +13,10 @@ import javax.swing.JTextArea;
 import roymcclure.juegos.mus.common.logic.GameState;
 import roymcclure.juegos.mus.common.logic.Language;
 import static roymcclure.juegos.mus.common.logic.Language.ServerGameState.*;
+import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.CARDS_PER_HAND;
 import static roymcclure.juegos.mus.common.logic.Language.GamePhase.*;
 import roymcclure.juegos.mus.common.logic.TableState;
+import roymcclure.juegos.mus.common.logic.cards.Carta;
 import roymcclure.juegos.mus.common.logic.jobs.*;
 import roymcclure.juegos.mus.server.UI.ServerWindow;
 import roymcclure.juegos.mus.server.network.AtenderCliente;
@@ -294,17 +299,75 @@ public class SrvMus extends Thread {
 		String[] tokens = cmd.split(" ");
 		try {
 			if (tokens[0].toLowerCase().equals("define")) {
-				defineCommand(tokens, txtLog);				
+				defineCommand(tokens);				
 			}
 			if (tokens[0].toLowerCase().equals("status")) {
-				statusCommand(tokens, txtLog);
+				statusCommand(tokens);
 			}
+			if (tokens[0].toLowerCase().equals("loadstate")) {
+				loadStateCommand();
+			}			
 		} catch(ArrayIndexOutOfBoundsException e) {
-			log("INVALID COMMAND\n");
+			log("INVALID COMMAND");
 		}
 	}
 
-	private void defineCommand(String[] tokens, JTextArea txtLog) {
+	private void loadStateCommand() {
+
+		try {
+			BufferedReader bfr = new BufferedReader(new FileReader("state.txt"));
+			String line = "";
+			while ((line = bfr.readLine())!=null) {
+				System.out.println(line);
+				int eq_indx = line.indexOf('=')+1;
+				if (line.contains("cartas_jugador")) {
+					line = line.substring(eq_indx).trim();					
+					Carta[] cartas = new Carta[CARDS_PER_HAND];
+					String[] ids = line.split(",");
+					for (int i=0; i< CARDS_PER_HAND; i++) {	
+						cartas[i] = new Carta(Byte.parseByte(ids[i+1]));
+					}
+					tableState.getClient(Integer.parseInt(ids[0])).setCartas(cartas );
+					//GameState.base_vacas_partida = Byte.parseByte(line);							
+				}
+				if (line.contains("gamephase")) {
+					line = line.substring(eq_indx).trim();
+					tableState.setGamePhase(Byte.parseByte(line));							
+				}
+				if (line.contains("juego")) {
+					line = line.substring(eq_indx).trim();
+					String[] juego = line.split(",");
+					for (int i = 0; i< juego.length; i++) {
+						if (juego[i].equals("0")) {
+							tableState.
+						}
+					}
+												
+				}
+				if (line.contains("pares")) {
+					line = line.substring(eq_indx).trim();
+					tableState.setGamePhase(Byte.parseByte(line));							
+				}
+				if (line.contains("en_paso")) {
+					line = line.substring(eq_indx).trim();
+					tableState.setGamePhase(Byte.parseByte(line));							
+				}				
+				
+			}
+			serverController.broadCastGameState();
+			bfr.close();
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+
+
+	private void defineCommand(String[] tokens) {
 		if (tokens.length == 1) {
 			log("stones_to_game [" + gameState.getPiedras_juego() + "]");
 			log("games_to_cow: " + gameState.getJuegos_vaca());
@@ -318,7 +381,7 @@ public class SrvMus extends Thread {
 		}
 	}
 
-	private void statusCommand(String[] tokens, JTextArea txtLog) {
+	private void statusCommand(String[] tokens) {
 		if (tokens.length == 1) {
 			log("========SERVER=STATUS:\n");
 			log("SERVER: " + (running ? "ONLINE" :  "OFFLINE"));
@@ -343,9 +406,12 @@ public class SrvMus extends Thread {
 			for (int i = 0; i < MAX_CLIENTS; i++) {
 				log( "[seat_id "+i+"]" + "Player ID [" + tableState.getClient(i).getID() +"]");				
 			}
+
+
+			// round state
 			log("Jugador que es mano:" + tableState.getMano_seat_id());
-			log("Jugador que debe hablar:" + tableState.getJugador_debe_hablar());
-			String[] lances = {"MUS","DESCARTES","GRANDE","CHICA","PARES","JUEGO"};
+			log("Jugador que debe hablar:" + tableState.getJugador_debe_hablar());			
+			String[] lances = {"MUS","DESCARTES","GRANDE","CHICA","PARES","JUEGO","FIN DE RONDA"};
 			log("Lance actual:" + lances[tableState.getGamePhase()]);
 			log("Piedras en el bote:" + tableState.getPiedras_acumuladas_en_apuesta());
 			log("Piedras envidadas en ronda actual:" + tableState.getPiedras_envidadas_ronda_actual());
@@ -353,9 +419,14 @@ public class SrvMus extends Thread {
 			log("Piedras envidadas a chica:" + tableState.getPiedras_envidadas_a_chica());
 			log("Piedras envidadas a pares:" + tableState.getPiedras_envidadas_a_pares());
 			log("Piedras envidadas a juego:" + tableState.getPiedras_envidadas_a_juego());
+			log("HAy ordago en juego? " + (tableState.isOrdago_lanzado()? "SI":"NO"));
+			// general state
 			log("Piedras pareja norte/sur:" + tableState.getPiedras_norte_sur());
-			log("Piedras pareja oeste/este:" + tableState.getPiedras_oeste_este());			
-			log("HAy ordago en juego? " + (tableState.isOrdago_lanzado()? "SI":"NO")); 
+			log("Piedras pareja oeste/este:" + tableState.getPiedras_oeste_este());
+			log("Juegos norte/sur:" + tableState.getJuegos_norte_sur());
+			log("Juegos oeste/este:" + tableState.getJuegos_oeste_este());
+			log("Vacas norte/sur:" + tableState.getVacas_norte_sur());
+			log("Vacas oeste/este:" + tableState.getVacas_oeste_este());
 			
 		}
 	}	

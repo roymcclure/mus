@@ -59,7 +59,7 @@ public class CartaView extends GameObject {
 	@Override
 	public void render(Graphics g) {
 		Point q = new Point(getX(this.carta_id), getY(this.carta_id));
-		g.drawImage(img, x, y, x + ANCHO_CARTA, y + ALTO_CARTA,
+		g.drawImage(img, x, y, x + ANCHO_CARTA_RENDER, y + ALTO_CARTA_RENDER,
 				q.x, q.y, q.x + ANCHO_CARTA_FICHERO, q.y + ALTO_CARTA_FICHERO, null);	
 
 	}

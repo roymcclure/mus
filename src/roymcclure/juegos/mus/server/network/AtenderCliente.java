@@ -15,18 +15,7 @@ import roymcclure.juegos.mus.server.logic.SrvMus;
  * 
  * @author Roy
  *
- *	Esta clase lee del cliente, actualiza si es necesario el estado del servidor
- *	y responde al cliente (y posiblemente al resto de clientes)
- *  con el estado del servidor para que puedan actualizar su UI.
- *  Asimismo abre un thread de escritura al cliente para poder 
- *  notificarle en ausencia de una petición del cliente, e.g. para
- *  poder decirle a un cliente que está esperando sentado a que
- *  empiece la partida si otros jugadores se han sentado a la mesa,
- *  o a un jugador que espera su turno para hablar las acciones
- *  de otro jugador que hablaba antes que él.
- *  No hay casos en los que el cliente comunique algo al servidor
- *  y no espere respuesta, puesto que todo el estado depende del servidor
- *  que es autoritativo.
+ *	span connection threads for a client
  *  
  */
 public class AtenderCliente extends Thread {

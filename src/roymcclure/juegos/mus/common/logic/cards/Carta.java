@@ -39,20 +39,21 @@ public class Carta implements Serializable, Comparator<Carta> {
 		return false;
 	}
 	
-	public static boolean isCerdo(byte card_id) {
+	public boolean isCerdo() {
     	// keep rest of dividing card_id by CARDS_PER_SUIT
     	// rest is either 2 or 11
-    	card_id = (byte) (card_id % CARDS_PER_SUIT);
+    	byte card_id = (byte) (this.getId() % CARDS_PER_SUIT);
     	return card_id==2 || card_id == 11;
     }
 	
 	// so the tricky part here is:
 	// a card id is card_value -1.
 	// so we need to take that into account
+	// 1 for {0,1}, 3 for {2,11}
 	public byte valorPares() {
 		byte num = (byte) (this.getId() % CARDS_PER_SUIT);
 		if (num== 2 || num == 11)
-			return 10;
+			return 3;
 		if (num == 1)
 			return 1;
 		return (byte) (num + 1);
@@ -76,8 +77,8 @@ public class Carta implements Serializable, Comparator<Carta> {
 		return (byte) (num + 1);
 	}	
 
-	public static boolean isPito(byte card_id) {
-		card_id = (byte) (card_id % CARDS_PER_SUIT);
+	public boolean isPito() {
+		byte card_id = this.getId();
     	return card_id==0 || card_id == 1;
 	}
 

@@ -5,7 +5,10 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 import javax.swing.*;
 import javax.swing.text.DefaultCaret;
@@ -31,7 +34,7 @@ public class ServerWindow extends JFrame {
 	private JButton btnRun;
 	
 	public ServerWindow() {
-		this.setSize(320,320);
+		this.setSize(320,720);
 		this.setTitle("Servidor Mus");
 		this.setAlwaysOnTop(true);
 		this.setLocation(2000, 200);
@@ -105,6 +108,49 @@ public class ServerWindow extends JFrame {
 		        }
 		    }
 		});
+		
+		// sys info
+		
+		int cores = Runtime.getRuntime().availableProcessors();
+		this.log("Number of cores:" + cores);
+		String hostname = "Unknown";
+
+		try
+		{
+		    InetAddress addr;
+		    addr = InetAddress.getLocalHost();
+		    hostname = addr.getHostName();
+		    this.log("Host name:" + hostname);    
+		}
+		catch (UnknownHostException ex)
+		{
+		    System.out.println("Hostname can not be resolved");
+		}
+
+		/* Total amount of free memory available to the JVM */
+		this.log("Free memory (bytes): " + 
+				Runtime.getRuntime().freeMemory());
+		
+		/* This will return Long.MAX_VALUE if there is no preset limit */
+		long maxMemory = Runtime.getRuntime().maxMemory();
+		/* Maximum amount of memory the JVM will attempt to use */
+		log("Maximum memory (bytes): " + 
+				(maxMemory == Long.MAX_VALUE ? "no limit" : maxMemory));
+
+		/* Total memory currently in use by the JVM */
+		  log("Total memory (bytes): " + 
+		  Runtime.getRuntime().totalMemory());
+		  /* Get a list of all filesystem roots on this system */
+		  File[] roots = File.listRoots();
+
+		  /* For each filesystem root, print some info */
+		  /*
+		  for (File root : roots) {
+		    log("File system root: " + root.getAbsolutePath());
+		    log("Total space (bytes): " + root.getTotalSpace());
+		    log("Free space (bytes): " + root.getFreeSpace());
+		    log("Usable space (bytes): " + root.getUsableSpace());
+		  }*/		  
 		
 	}
 	

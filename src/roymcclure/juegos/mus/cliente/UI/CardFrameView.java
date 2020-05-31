@@ -60,7 +60,7 @@ public class CardFrameView extends GameObject {
 
 	@Override
 	public void render(Graphics g) {
-		g.drawImage(img, x, y, x + ANCHO_CARTA, y + ALTO_CARTA,
+		g.drawImage(img, x, y, x + ANCHO_CARTA_RENDER, y + ALTO_CARTA_RENDER,
 				0, 0, ANCHO_CARTA_FICHERO, ALTO_CARTA_FICHERO, null);	
 
 	}

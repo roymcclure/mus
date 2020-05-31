@@ -9,7 +9,9 @@ public enum ID {
 	Text,
 	Mano,
 	CartaFrame,
-	CartaFrameSelected;
+	CartaFrameSelected,
+	Amarrako,
+	Amarrako5;
 
 	
 }

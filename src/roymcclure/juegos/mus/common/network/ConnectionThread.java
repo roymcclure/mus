@@ -9,6 +9,7 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.net.SocketException;
 
+
 import static roymcclure.juegos.mus.common.logic.Language.ConnectionState.*;
 import static roymcclure.juegos.mus.common.logic.Language.NodeState.*;
 
@@ -24,7 +25,7 @@ import roymcclure.juegos.mus.common.logic.jobs.*;
  * @author roy
  *
  */
-public class ConnectionThread implements Runnable {
+public class ConnectionThread implements Runnable   {
 
 	private boolean running = false;
 	private byte operation;
@@ -160,8 +161,8 @@ public class ConnectionThread implements Runnable {
 			ServerMessage sm;
 			//System.out.println("CLIENT CONNECTION READ THREAD: waiting for message...");			
 			sm = receiveFromServer();
-			System.out.println("MESSAGE RECEIVED. POSTING TO CLIENT CONTROLLER JOBS....");			
-			sm.printContent();
+			//System.out.println("MESSAGE RECEIVED. POSTING TO CLIENT CONTROLLER JOBS....");			
+			//sm.printContent();
 			synchronized(_controllerJobs) {
 				_controllerJobs.postRequestJob(new MessageJob(sm));
 				_controllerJobs.notify();
@@ -237,6 +238,9 @@ public class ConnectionThread implements Runnable {
 			//System.out.println("[ConnectionThread:Write] Retrieved a Connection job from the queue.");
 		}			
 
+		// cuando llega un mensaje, podemos notificar al controller
+		// es básicamente lo que hacemos ahora con getJob()->processJob()->messageReceived() | clickReceived()
+		
 		return job;
 	}
 
@@ -246,6 +250,7 @@ public class ConnectionThread implements Runnable {
 		 * 
 		 */
 		private static final long serialVersionUID = 3274684805971075626L;}
+		
 	
-
+	
 }

@@ -71,19 +71,19 @@ public class ServerMessage implements Serializable {
 		if (gameState != null) { 
 			switch(gameState.getServerGameState()) {
 			case WAITING_ALL_PLAYERS_TO_CONNECT:
-				System.out.println("STATE SERVER: ESPERANDO A QUE TODOS SE CONECTEN");				
+				System.out.println("SERVER STATE: ESPERANDO A QUE TODOS SE CONECTEN");				
 				break;
 			case WAITING_ALL_PLAYERS_TO_SEAT:
-				System.out.println("STATE SERVER: ESPERANDO A QUE TODOS SE SIENTEN");
+				System.out.println("SERVER STATE: ESPERANDO A QUE TODOS SE SIENTEN");
 				break;
 			case PLAYING:
-				System.out.println("STATE SERVER: JUGANDO");
+				System.out.println("SERVER STATE: JUGANDO");
 				break;
 			case GAME_FINISHED:
-				System.out.println("STATE SERVER: JUEGo TERMINADO");
+				System.out.println("SERVER STATE: JUEGo TERMINADO");
 				break;
 			case END_OF_ROUND:
-				System.out.println("STATE SERVER: FIN DE LA RONDA");
+				System.out.println("SERVER STATE: FIN DE LA RONDA");
 				break;
 			}
 			System.out.println("Sentados:");
