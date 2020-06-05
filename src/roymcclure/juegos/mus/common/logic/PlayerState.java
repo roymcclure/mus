@@ -164,7 +164,7 @@ public class PlayerState implements Serializable {
 
 		for (int v : mano) {
 			if (!yaLeidos.contains(v)) {
-				System.out.println("añadiendo conjunto:" + Collections.frequency(mano, v));
+				// System.out.println("añadiendo conjunto:" + Collections.frequency(mano, v));
 				conjuntoPares.add(Collections.frequency(mano, v));
 				yaLeidos.add(v);
 			}
@@ -188,10 +188,11 @@ public class PlayerState implements Serializable {
 					return TipoPares.NO_PAR;
 	}
 
+	// esto es el valor numérico
 	public int valorJuego() {
 		int valor = 0;
 		for (int i = 0; i < CARDS_PER_HAND; i++) {
-			valor+=cartas[i].valor();			
+			valor+=cartas[i].valorJuego();			
 		}
 		return valor;
 	}

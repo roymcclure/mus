@@ -19,6 +19,7 @@ public class Language {
 				HABLO_PARES = 13,
 				HABLO_JUEGO = 14,
 				NO_SE_JUEGA_RONDA = 15,
+				SIG_RONDA = 16,
 				CLOSE_CONNECTION = 20,
 				ERROR_MUS = 21;
 
@@ -99,7 +100,8 @@ public class Language {
 				BUTTON_ENVIDAR_5 = 1,									
 				BUTTON_ORDAGO = 2,
 				BUTTON_PASO = 3,
-				BUTTON_ACEPTAR = 4;									
+				BUTTON_ACEPTAR = 4,
+				BUTTON_SIG_RONDA = 0;									
 	}
 
 	public class MouseInputType {
@@ -125,7 +127,7 @@ public class Language {
 	}
 	
 	public static class StringLiterals {
-		public static final String[] LANCES = {"MUS","DESCARTE","GRANDE","CHICA", "PARES","JUEGO","FIN_RONDA"};
+		public final static String[] LANCES = {"MUS","DESCARTE","GRANDE","CHICA", "PARES","JUEGO","FIN_RONDA"};
 	}
 
 

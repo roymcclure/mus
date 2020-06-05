@@ -3,6 +3,7 @@ package roymcclure.juegos.mus.cliente.network;
 import java.io.IOException;
 import java.net.Socket;
 
+import roymcclure.juegos.mus.cliente.UI.ClientWindow;
 import roymcclure.juegos.mus.common.logic.jobs.*;
 import roymcclure.juegos.mus.common.network.*;
 import static roymcclure.juegos.mus.common.logic.Language.ConnectionState.*;
@@ -43,19 +44,30 @@ public class ClientConnection implements Runnable {
 	public void run()  {
 		if (connected) {
 			// thread_id is important only to the server connection threads, so its not relevant here				
+			
+			System.out.print("Creating write connection thread for client...");
 			ConnectionThread ctw = new ConnectionThread(WRITE, CLIENT, _connectionJobs, _controllerJobs,IRRELEVANT);
 			ctw.setSocket(_socket);
-			threadEscritura = new Thread(ctw);				
-
-
+			threadEscritura = new Thread(ctw);
+			System.out.println("done.");
+			
+			System.out.print("Creating read connection thread for client...");
 			ConnectionThread ctl = new ConnectionThread(READ, CLIENT, _connectionJobs, _controllerJobs,IRRELEVANT);
+			System.out.println("object created. Setting socket...");
 			ctl.setSocket(_socket);
+			System.out.print("socket set. Creating thread...");
 			threadLectura = new Thread(ctl);
+			System.out.println("created.");
+			System.out.println("done. Staring client write & read threads.");
 
 
 			threadLectura.start();
 			threadEscritura.start();
 			//System.out.println("[ClientConnection] read and write threads have started.");
+			
+			synchronized(ClientWindow.semaphore) {
+				ClientWindow.semaphore.notify();
+			}
 			
 			try {
 				threadLectura.join();
@@ -78,6 +90,8 @@ public class ClientConnection implements Runnable {
 				_connectionJobs.postConnectionJob(job);
 				_connectionJobs.notify();
 			}
+			_socket.getInputStream().close();
+			_socket.getOutputStream().close();
 			_socket.close();
 		} catch (IOException ex) {
 			

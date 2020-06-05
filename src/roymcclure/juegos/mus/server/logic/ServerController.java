@@ -3,16 +3,15 @@ package roymcclure.juegos.mus.server.logic;
 import static roymcclure.juegos.mus.common.logic.Language.PlayerActions.*;
 import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.*;
 import static roymcclure.juegos.mus.common.logic.Language.GamePhase.*;
-import static roymcclure.juegos.mus.common.logic.Language.ServerGameState.*;
+
 
 import java.util.Random;
 
-import com.sun.org.glassfish.external.statistics.annotations.Reset;
+
 
 import roymcclure.juegos.mus.common.logic.*;
 import roymcclure.juegos.mus.common.logic.Language.GamePhase;
 import roymcclure.juegos.mus.common.logic.Language.PlayerActions;
-import roymcclure.juegos.mus.common.logic.cards.Jugadas;
 import roymcclure.juegos.mus.common.logic.jobs.*;
 import roymcclure.juegos.mus.common.network.ClientMessage;
 import roymcclure.juegos.mus.common.network.ServerMessage;
@@ -40,6 +39,7 @@ public class ServerController implements Runnable{
 	private SrvMus server;
 
 	private int acks_ronda_no_jugada = 0;
+	private int acks_siguiente_ronda = 0;	
 
 	public ServerController(ControllerJobsQueue controllerJobsQueue, ConnectionJobsQueue[] connectionJobs, GameState gameState, TableState tableState, SrvMus server, Object key) {
 		this.gameState = gameState;
@@ -56,14 +56,12 @@ public class ServerController implements Runnable{
 		_running = true;
 		while(_running) {
 			//System.out.print("[Controller] Awaiting for a job to process....\n");
-			synchronized(_controllerJobsQueue) {
-				job = getJob();
-				//System.out.println("Got a job.");
-				processJob(job);
-			}
+			job = getJob();
+			System.out.println("[SERVER CONTROLLER] Received a job. Processing...");
+			processJob(job);
 		}
 	}
-	
+
 	/**
 	 * 
 	 * JOB RELATED FUNCTIONS
@@ -82,21 +80,27 @@ public class ServerController implements Runnable{
 				}
 			}
 			job = _controllerJobsQueue.getControllerJob();
-			//System.out.println("[SERVER CONTROLLER] Got a Controller job.");
+			_controllerJobsQueue.deleteFirstJob();
+			 System.out.println("[SERVER CONTROLLER] Got a Controller job.");
 		}			
 
 		return job;
 	}
 
 	private void processJob(Job job) {
-		//System.out.println("Called processJob()");
+		System.out.println("[CONTROLLER] processJob() starting");
 		// game state is modified by clickReceived and message received
 		if (job instanceof MessageJob) {
-			//System.out.println("Controller: processing ServerMessageJob");
+			System.out.println("[CONTROLLER] job is a MessageJob");
 			MessageJob mj = (MessageJob) job;
 			if (isValidRequest(mj.getClientMessage(),mj.getThreadId())) {
-				if (shouldBeBroadcasted(mj.getClientMessage()))
+				System.out.println("[CONTROLLER] job contains a valid request.");				
+				if (shouldBeBroadcasted(mj.getClientMessage())) {
+					System.out.print("[CONTROLLER] job is being broadcasted...");					
 					broadCastPlayerAction(mj.getClientMessage(), mj.getThreadId());
+					System.out.println("done.");
+				}
+				System.out.println("[CONTROLLER] updating game state...");
 				updateGameStateWith(mj.getClientMessage(),mj.getThreadId());
 				// include thread_id in should be broadcasted?
 				// probably not the need for a broadcast is determined
@@ -105,7 +109,7 @@ public class ServerController implements Runnable{
 		} 
 	}
 
-	
+
 	// checks preconditions for a valid request
 	private boolean isValidRequest(ClientMessage clientMessage, byte threadId) {
 		byte talking_seat_id = tableState.getJugador_debe_hablar();
@@ -160,6 +164,11 @@ public class ServerController implements Runnable{
 		case REQUEST_SEAT: // a player can always request a seat.
 		case CLOSE_CONNECTION: // a player can always close the connection.
 			return true;
+		case SIG_RONDA:
+			if (tableState.getGamePhase() == FIN_RONDA) {
+				return true;
+			}
+			break;
 		default:
 			return false;				
 
@@ -178,6 +187,8 @@ public class ServerController implements Runnable{
 		if (clientMessage.getAction() == REQUEST_SEAT)
 			eligible = false;
 		if (clientMessage.getAction() == NO_SE_JUEGA_RONDA)
+			eligible = false;
+		if (clientMessage.getAction() == SIG_RONDA)
 			eligible = false;
 		if (!eligible)
 			return false;
@@ -202,6 +213,7 @@ public class ServerController implements Runnable{
 
 	public synchronized void updateGameStateWith(ClientMessage cm, byte thread_id) {
 		// si cliente solicita información del mundo, realmente no hacemos gran cosa.
+		System.out.println("[CONTROLLER] updateGameStateWith()");
 		String playerID = "";
 		byte player_seat_id = 0;
 		playerID = gameState.getPlayerID(thread_id);
@@ -218,7 +230,7 @@ public class ServerController implements Runnable{
 
 		case CLOSE_CONNECTION:
 			//player wants to disconnect.
-			System.out.println("Player from thread " + thread_id + " wants to disconnect.");
+			System.out.println("[SERVER CONTROLLER] Player from thread " + thread_id + " wants to disconnect.");
 
 			// si el jugador estaba sentado, limpiamos su sitio
 			playerID = gameState.getPlayerID(thread_id);
@@ -228,7 +240,10 @@ public class ServerController implements Runnable{
 				tableState.clearSeat(seat_id);
 			server.releaseThread(thread_id);
 			//stop all threads to that client
-
+			SrvMus.disconnection = true;
+			synchronized(key) {
+				key.notify();
+			}
 			break;
 
 		case PlayerActions.MUS:
@@ -237,11 +252,15 @@ public class ServerController implements Runnable{
 			break;
 
 		case PlayerActions.CORTO_MUS:
+			// we are in DESCARTE state
 			tableState.setGamePhase(GRANDE);
+			tableState.resetTalked();
+			if (tableState.getId_ronda() !=0 ) {
+				tableState.setJugador_debe_hablar(tableState.getMano_seat_id());
+			}
 			synchronized(key) {
 				key.notify();
 			}
-			tableState.resetTalked();
 			try {
 				synchronized(key) {
 					key.wait();
@@ -279,15 +298,68 @@ public class ServerController implements Runnable{
 
 			updateStateWithPass();
 			break;
+		case PlayerActions.SIG_RONDA:
+			updateStateWithSigRonda();
+			break;
 
 		default:
 			break;
 
 		}
+		// si después de actualizar hemos llegado a fin de ronda, 
+		// entonces esperamos a que el servidor me notifique 
+		if (tableState.getGamePhase()==FIN_RONDA) {
+			// we notify the server so that it can advance to END_OF_ROUND			
+			synchronized(key) {
+				key.notify();
+			}
+			try {
+				Thread.sleep(200);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			// then he waits there until all four sig_ronda are received
+		}
 		// tell other players what happened
-		if (cm.getAction()!=REQUEST_GAME_STATE && cm.getAction() != DESCARTAR) {
+		if (cm.getAction()!=REQUEST_GAME_STATE && cm.getAction() != DESCARTAR && cm.getAction()!=SIG_RONDA) {
+			System.out.println("[CONTROLLER] BROADCASTING GAME STATE");
 			broadCastGameState();
 		}
+	}
+
+	private void updateStateWithSigRonda() {
+		acks_siguiente_ronda++;
+		if (acks_siguiente_ronda == MAX_CLIENTS) {
+
+			System.out.println("[CONTROLLER] RECIBIDOS TODOS LOS SIG_RONDA, LIMPIANDO ESTADO");
+			tableState.pasarASiguienteLance();
+			// jugadores hablado no hace falta, se hace en pasarAsiguienteLance
+
+			acks_siguiente_ronda = 0;
+			// devolver todas las cartas a la baraja y barajar
+			tableState.getBaraja().vaciar();
+			tableState.getBarajaDescartes().vaciar();
+			tableState.getBaraja().rellenar();
+			tableState.getBaraja().barajar();
+			// poner piedras envidadas en cada ronda a 0
+			byte zero = 0;
+			tableState.setMano_seat_id(TableState.nextTableSeatId(tableState.getMano_seat_id()));
+			tableState.setJugador_debe_hablar(tableState.getMano_seat_id());
+			tableState.setPiedras_acumuladas_en_apuesta(zero);
+			for (byte i = GRANDE; i<=JUEGO;i++)
+				tableState.setPiedras_envidadas(i, zero);
+			// repartir
+			tableState.repartir();
+
+			synchronized(key) {
+				key.notify();
+			}
+
+			broadCastGameState();
+
+
+		}		
 	}
 
 	/***
@@ -296,8 +368,8 @@ public class ServerController implements Runnable{
 	 * 
 	 * 
 	 */
-	
-	
+
+
 	private void updateOnSkippingRound() {
 		System.out.println("LLEGO UN MSG NO SE JUEGA RONDA");
 		acks_ronda_no_jugada++;
@@ -306,25 +378,31 @@ public class ServerController implements Runnable{
 			acks_ronda_no_jugada = 0;
 			tableState.pasarASiguienteLance();
 		}
-		
+
 	}
 
 	private void updateOnMus() {
+
+		// cuando se recibe un mus
+		// 	si todo el mundo ya habló
+		//		pasamos a ronda descartes
+		//		
+
+
 		tableState.increaseTalkedPlayers();
 		// if this is the last guy having mus, go to DESCARTANDO game phase
 		if (tableState.allPlayersTalked()) {
-			tableState.setGamePhase(DESCARTE);
-			tableState.resetTalked();
+			tableState.pasarASiguienteLance();
 			synchronized(key) {
 				key.notify();
 			}
 		}
-		// advance turn to next player, and inform all players
 		// solo es mus corrido en la primera ronda
 		tableState.advanceTalkingPlayer();
-		if (tableState.getId_ronda()==0)
+		if (tableState.getId_ronda()==0) {						
 			tableState.setMano_seat_id(tableState.getJugador_debe_hablar());
-		
+		}
+
 	}
 
 	private void updateOnRequestSeat(byte requested_seat, byte thread_id) {
@@ -360,6 +438,7 @@ public class ServerController implements Runnable{
 			broadCastGameState();	
 		} else {
 			// TODO: not very sure of this...
+			System.out.println("[CONTROLLER] sendGameState() : else in updateOnRequestSeat()");
 			sendGameState(thread_id);
 		}		
 
@@ -417,10 +496,10 @@ public class ServerController implements Runnable{
 
 	}
 
-		
+
 
 	private void updateStateWithEnvite(byte player_seat_id, byte qtyEnvidada) {		
-		//TODO: chapucilla....
+		//TODO: chapucilla.... por?
 		tableState.setEnPaso((byte) (tableState.getGamePhase()), false);
 		// if its a new envite, add qty to piedras_envidadas_a_grande
 		if (tableState.getJugadores_hablado_en_turno_actual()==0) {
@@ -460,8 +539,7 @@ public class ServerController implements Runnable{
 			if (tableState.isOrdago_lanzado()) {
 				if (tableState.isPostreEnSuEquipo(player_seat_id)) {
 					tableState.givePotTo(player_seat_id+1);
-					tableState.pasarASiguienteLance();
-					tableState.advanceLance();					
+					tableState.pasarASiguienteLance();					
 				} else {
 					tableState.setJugador_debe_hablar(tableState.opuesto(player_seat_id));
 				}
@@ -513,26 +591,45 @@ public class ServerController implements Runnable{
 			}			
 			break;
 		case JUEGO:
-			if (piedrasEnvidadas >0 ) {
-				// si estamos a pares o juego y yo era el único que podía hablar,
-				// damos pot y pasamos a siguiente lance
-				boolean miParejaTieneJuego = tableState.tieneJuego(tableState.opuesto(player_seat_id));
-				if (tableState.isPostreEnSuEquipo(player_seat_id) || !miParejaTieneJuego) {
-					tableState.givePotTo(player_seat_id+1);
-					tableState.pasarASiguienteLance();
+			if (!tableState.seJuegaAlPunto()) {
+				if (piedrasEnvidadas >0 ) {
+					// si estamos a pares o juego y yo era el único que podía hablar,
+					// damos pot y pasamos a siguiente lance
+					boolean miParejaTieneJuego = tableState.tieneJuego(tableState.opuesto(player_seat_id));
+					if (tableState.isPostreEnSuEquipo(player_seat_id) || !miParejaTieneJuego) {
+						tableState.givePotTo(player_seat_id+1);
+						tableState.pasarASiguienteLance();
+					} else {
+						tableState.setJugador_debe_hablar(tableState.opuesto(player_seat_id));
+					}
 				} else {
-					tableState.setJugador_debe_hablar(tableState.opuesto(player_seat_id));
-				}
+					// yo paso y no hay ningún envite
+					// si soy el último jugador con juego pasamos al siguiente lance
+					// de lo contrario que hable el siguiente que tenga pares
+					if (tableState.isUltimoConJuego(player_seat_id)) {
+						tableState.pasarASiguienteLance();					
+					} else {
+						tableState.setJugador_debe_hablar(tableState.siguienteConJuego(player_seat_id));
+					}		
+				}				
 			} else {
-				// yo paso y no hay ningún envite
-				// si soy el último jugador con juego pasamos al siguiente lance
-				// de lo contrario que hable el siguiente que tenga pares
-				if (tableState.isUltimoConJuego(player_seat_id)) {
-					tableState.pasarASiguienteLance();					
+				if (piedrasEnvidadas >0 ) {
+					if (tableState.isPostreEnSuEquipo(player_seat_id)) {
+						tableState.givePotTo(player_seat_id+1);
+						tableState.pasarASiguienteLance();
+					} else {
+						tableState.setJugador_debe_hablar(tableState.opuesto(player_seat_id));
+					}
 				} else {
-					tableState.setJugador_debe_hablar(tableState.siguienteConJuego(player_seat_id));
-				}		
-			}						
+					if (tableState.isPostreEnSuEquipo(player_seat_id)) {
+						tableState.givePotTo(player_seat_id+1); 
+						tableState.pasarASiguienteLance();						
+					} else {
+						tableState.setJugador_debe_hablar(TableState.nextTableSeatId(player_seat_id));						
+					}
+				}
+			}
+
 			break;
 		default:
 			break;
@@ -553,6 +650,7 @@ public class ServerController implements Runnable{
 	//notify All Players
 	public void broadCastGameState() {
 		for (byte i = 0; i < MAX_CLIENTS; i++) {
+			System.out.println("[CONTROLLER] sending gamestate for " + i);
 			sendGameState(i);
 		}
 	}
@@ -560,6 +658,8 @@ public class ServerController implements Runnable{
 	// sends a player the game state
 	private void sendGameState(byte thread_id) {
 		ServerMessage sm = ServerMessage.forgeStateMessage(gameState, tableState, gameState.getPlayerID(thread_id));
+		System.out.println("[SERVER CONTROLLER] Forged a message for the client.");
+		//sm.printContent();
 		postServerConnectionJob(sm, thread_id);
 	}
 
@@ -573,7 +673,8 @@ public class ServerController implements Runnable{
 			connectionJobs[thread_id].notify();
 		}
 	}
-	
+
+	/*
 	private void updateScore() {
 		if (tableState.vacaAlcanzada(gameState.getJuegos_vaca())) {
 			tableState.asignarVaca(gameState.getJuegos_vaca());
@@ -581,6 +682,6 @@ public class ServerController implements Runnable{
 				tableState.asignarPartida(gameState.getVacas_partida());
 			}
 		}		
-	}	
+	} */	
 
 }

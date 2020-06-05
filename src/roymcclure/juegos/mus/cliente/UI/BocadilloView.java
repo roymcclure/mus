@@ -27,13 +27,13 @@ public class BocadilloView extends GameObject {
 	private int image_height;
 	private String texto;
 
-	public BocadilloView(int x, int y, ID id, long life_time_ms, byte seat_id, String texto) {
+	public BocadilloView(int x, int y, ID id, long life_time_ms, byte absolute_seat_id, String texto) {
 		super(x, y, id);
 		this.life_time = life_time_ms;
 		this.texto = texto;
 		try {
 			if (img==null) {
-				if (seat_id %2 ==0) {
+				if (absolute_seat_id %2 ==0) {
 					
 					InputStream in = this.getClass().getResourceAsStream("/resources/bocadillo_vertical.png");
 					if (in != null) {
@@ -53,7 +53,7 @@ public class BocadilloView extends GameObject {
 				}
 				image_width = img.getWidth();
 				image_height = img.getHeight();
-				switch(seat_id) {
+				switch(absolute_seat_id) {
 				case 0:flipVertical();
 				break;
 				case 1:

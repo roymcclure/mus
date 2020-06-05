@@ -7,6 +7,7 @@ import javax.swing.*;
 import roymcclure.juegos.mus.cliente.logic.ClientGameState;
 import roymcclure.juegos.mus.cliente.logic.ClientController;
 import roymcclure.juegos.mus.cliente.logic.Game;
+import roymcclure.juegos.mus.common.logic.PlayerState;
 import roymcclure.juegos.mus.common.logic.jobs.*;
 import roymcclure.juegos.mus.cliente.network.ClientConnection;
 import roymcclure.juegos.mus.cliente.network.GetNetworkAddress;
@@ -35,10 +36,12 @@ public class ClientWindow extends JFrame {
 	public static ClientGameState clientGameState;
 	private GameCanvas gameCanvas;
 	private JFrame theWindow;
-
+	private ClientController controller;
+	public static Object semaphore;
+	private Game game;
 
 	public ClientWindow(String title, String windowPosition) {
-		// init client game state
+		//		init client game state
 		clientGameState = new ClientGameState();
 		// job queues
 		ControllerJobsQueue controllerJobs = new ControllerJobsQueue();
@@ -46,23 +49,29 @@ public class ClientWindow extends JFrame {
 		// UI
 		gameCanvas = new GameCanvas(controllerJobs);
 		// logic
-		Game game = new Game(clientGameState, controllerJobs, gameCanvas);
+		game = new Game(clientGameState, gameCanvas);
 
+		semaphore = new Object();
+		
 		// Controller Thread
-		ClientController controller = new ClientController(game.getHandler(), controllerJobs, connectionJobs, game);
-
+		// handleris used to tell the renderer to update the view
+		// jobs are basically the pipes from where we receive and post
+		// game is used because reasons
+		controller = new ClientController(game.getHandler(), controllerJobs, connectionJobs);
+	
 		// connection & controller threads
 		ClientConnection.setConnectionJobsQueue(connectionJobs);
 		ClientConnection.setControllerJobsQueue(controllerJobs);
 
-		setupFrame("MUS -- client", game, windowPosition);
+		setupFrame("MUS -- client", windowPosition);
 		createConnectionDialog();
 		// showConnectionDialog();
 		theWindow = this;
 
-		controller.start();		
-		game.start();
 
+
+
+		
 		this.addWindowListener(new java.awt.event.WindowAdapter() {
 			@Override
 			public void windowClosing(java.awt.event.WindowEvent windowEvent) {
@@ -95,13 +104,50 @@ public class ClientWindow extends JFrame {
 
 	}
 
-	private void setupFrame(String title, Game game, String windowPosition) {
+	private void setupFrame(String title, String windowPosition) {
 		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		Dimension d = new Dimension(UIParameters.CANVAS_WIDTH,UIParameters.CANVAS_HEIGHT);
 		this.setTitle(title);
+		
+		//menu
+		JMenuBar menuBar = new JMenuBar();
+		
+		JMenu menu_File = new JMenu("File");
+		menuBar.add(menu_File);		
+		JMenuItem options = new JMenuItem("Puntuacion global");
+		options.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				if (ClientGameState.table()!=null) {
+					PlayerState me = ClientGameState.me();
+					if (me!=null) {
+						byte my_seat = ClientGameState.table().getSeatOf(me.getID());
+						if (my_seat > -1) {
+							if (my_seat % 2==0) {
+								JOptionPane.showMessageDialog(null, "Tu equipo: " + ClientGameState.table().getPiedras_norte_sur() + " piedras, " + ClientGameState.table().getJuegos_norte_sur() +" juegos, " + ClientGameState.table().getVacas_norte_sur() + " vacas");							
+							} else {
+								JOptionPane.showMessageDialog(null, "Tu equipo: piedras" + ClientGameState.table().getPiedras_oeste_este() + ", juegos:" + ClientGameState.table().getJuegos_oeste_este() +", vacas:" + ClientGameState.table().getVacas_oeste_este());							
+							}
+							
+						} else {
+							JOptionPane.showMessageDialog(null, "No estás sentado.");						
+						}						
+					} else {
+						JOptionPane.showMessageDialog(null, "No estás sentado.");
+					}
+										
+				} else {
+					JOptionPane.showMessageDialog(null, "Ninguna puntuación.");					
+				}
 
+				
+			}
+		});
 
+		menu_File.add(options);
 
+		this.setJMenuBar(menuBar);
 
 		this.setResizable(false);
 		Dimension desktop = Toolkit.getDefaultToolkit().getScreenSize();
@@ -158,14 +204,23 @@ public class ClientWindow extends JFrame {
 				if (isValidated(txtUrl.getText(),txtPort.getText(),txtName.getText())) {
 					//tell the connection object to try to connect
 					try {
+						game.start();
+						if (!Game.running) {
+							synchronized(ClientWindow.semaphore) {
+								ClientWindow.semaphore.wait();
+							}
+						}
+						controller.start();		
+					
 						ClientConnection.connect(txtUrl.getText(), Integer.parseInt(txtPort.getText()));
 						hideConnectionDialog();
-						Thread connection = new Thread(new ClientConnection());
-						connection.start();
+						Thread connectionThread = new Thread(new ClientConnection());
+						System.out.print("Starting connection thread...");
+						connectionThread.start();
+						System.out.println("started.");
 						// forge player ID
 						ClientGameState.setPlayerID(txtName.getText()+":"+GetNetworkAddress.GetAddress("mac").replace("-", ""));
-						theWindow.setTitle(theWindow.getTitle() + " - " + txtName.getText());
-						// tell the Controller to request acknowledgement and game state
+						theWindow.setTitle(theWindow.getTitle() + " - " + txtName.getText());						
 						ClientController.postInitialRequest();
 					} catch (Exception exception) {
 						exception.printStackTrace();

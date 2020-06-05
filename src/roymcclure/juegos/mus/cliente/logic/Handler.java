@@ -9,6 +9,7 @@ import java.util.LinkedList;
 import roymcclure.juegos.mus.cliente.UI.*;
 import roymcclure.juegos.mus.common.logic.Language.GamePhase;
 import roymcclure.juegos.mus.common.logic.Language.PlayerActions;
+import roymcclure.juegos.mus.common.logic.Language;
 import roymcclure.juegos.mus.common.logic.TableState;
 import roymcclure.juegos.mus.common.logic.cards.Carta;
 import roymcclure.juegos.mus.common.network.ClientMessage;
@@ -96,14 +97,17 @@ public class Handler {
 		}
 	}	
 
-	// TODO: there is no need to re-create all objects that havent changed
+
 	// UI update upon Server Message reception.
+	// TODO: there is no need to re-create all objects that havent changed	
 	public void updateView() {
+		System.out.println(System.nanoTime() + " calling UpdateView");
 		if (ClientGameState.table()!=null && ClientGameState.getGameState() != null) {
 			//System.out.println("called updateView in handler");
 			synchronized(objects) {
 				objects.clear();
 			}
+			//System.out.println("UPDATE view called: state is " + ClientGameState.getGameState().getServerGameState());
 			// player names
 			updateNamesView();
 			// cards
@@ -317,11 +321,20 @@ public class Handler {
 		case CHICA:
 		case PARES:
 		case JUEGO:			
-			if (tipo_ronda == PARES && !table().tienePares(my_seat_id())) {
-				show = false;
+			//System.out.println("updating buttons. tipo ronda:" + Language.StringLiterals.LANCES[tipo_ronda]);
+			if (tipo_ronda == PARES) {
+				if (!table().tienePares(my_seat_id())) {
+					System.out.println("poniendo show a false en pares");
+					show = false;
+				}
 			}		
-			else if (tipo_ronda == JUEGO && !table().tieneJuego(my_seat_id())) {
-				show = false;
+			else if (tipo_ronda == JUEGO) {				
+				if (table().seJuegaJuego()) {
+					if (!table().seJuegaAlPunto() && !table().tieneJuego(my_seat_id())) {
+						System.out.println("poniendo show a false en juego");
+						show = false;
+					}
+				} 
 			}		
 			if (ClientGameState.table().getJugador_debe_hablar()==my_seat_id() && show) {
 				if (table().isOrdago_lanzado()){
@@ -368,15 +381,7 @@ public class Handler {
 		// if i am not seated, draw names of whoever are seated in their actual position
 		if (my_seat_id() <0) {
 			for (byte i = 0; i < MAX_CLIENTS; i++) {
-				//System.out.println("Calling UIParameters.getPlayerNameOrigin(i)...");
 				Point p = UIParameters.getPlayerNameOrigin(i);
-				//System.out.println("Calling ClientGameState.table()");
-				//ClientGameState.table();
-				////System.out.println("Calling ClientGameState.table().getClient(i)");
-				//ClientGameState.table().getClient(i);
-				//System.out.println("Calling ClientGameState.table().getClient(i).getName()");
-				//ClientGameState.table().getClient(i).getName();
-				//System.out.println("Calling addTextGameObject()");
 				addTextGameObject(p, ClientGameState.table().getClient(i).getName());
 			}
 		} else {
@@ -388,20 +393,24 @@ public class Handler {
 		}
 	}
 
+	// en qty viene el sitio
 	public void broadcastMsgToView(ClientMessage broadCastMessage) {
-		byte absolute_seat_id = ClientGameState.table().getSeatOf(broadCastMessage.getInfo());
+		// i guess it's not great to use the info field for this. i guess it's not terrible either.
+		String sender_playerID = broadCastMessage.getInfo();
+		byte sender_absolute_seat_id = ClientGameState.table().getSeatOf(sender_playerID);
+		byte sender_relative_seat_id = UIParameters.relativePosition(my_seat_id(), sender_absolute_seat_id);
 		String msg = "";
 		String[] playerActionsText = {"PASO","ENVIDO","ACEPTO","ORDAGO","ME DOY MUS","UNA MIERDA MUS!",	"ME TIRO DE ",
 				"", "", "", "", "", "", "TENGO PARES","TENGO JUEGO","","","","","","CIERRO CONEXION","DESCARTA UNA COMO POCO"
 		};
 		msg = playerActionsText[broadCastMessage.getAction()];
 		if (broadCastMessage.getAction()==PlayerActions.HABLO_PARES ) {
-			if (!ClientGameState.table().tienePares(broadCastMessage.getQuantity())) {
+			if (!ClientGameState.table().tienePares(sender_absolute_seat_id)) {
 				msg="NO " + msg;			
 			}
 		}
 		if (broadCastMessage.getAction()==PlayerActions.HABLO_JUEGO ) {
-			if (!ClientGameState.table().tieneJuego(broadCastMessage.getQuantity())) {
+			if (!ClientGameState.table().tieneJuego(sender_absolute_seat_id)) {
 				msg="NO " + msg;
 			}
 		}			
@@ -412,15 +421,14 @@ public class Handler {
 		if (broadCastMessage.getAction()==ENVITE && ClientGameState.table().getPiedras_acumuladas_en_apuesta() > 0)
 			msg+=" MAS!";
 
-		addSpeechBubble(absolute_seat_id, msg, DEFAULT_SPEECHBUBBLE_LIFETIME);
+		addSpeechBubble(sender_relative_seat_id, msg, DEFAULT_SPEECHBUBBLE_LIFETIME);
 
 	}
 	
-	public void addSpeechBubble(byte absolute_seat_id, String msg, int duracion) {
+	public void addSpeechBubble(byte seat_position, String msg, int duracion) {
 		int x = UIParameters.CANVAS_WIDTH / 2 - UIParameters.BOCADILLO_ANCHO / 2;
 		int y = UIParameters.CANVAS_HEIGHT / 2 - UIParameters.BOCADILLO_ALTO / 2;
-		byte relative_seat_id = UIParameters.relativePosition(ClientGameState.my_seat_id(), absolute_seat_id);
-		BocadilloView bv = new BocadilloView(x,y,ID.Bocadillo, duracion,relative_seat_id,msg);
+		BocadilloView bv = new BocadilloView(x,y,ID.Bocadillo, duracion,seat_position,msg);
 		addTemporaryObject(bv);
 	}
 

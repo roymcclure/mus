@@ -38,6 +38,7 @@ fix: only update the view if our states are not null (meaning we update with the
 
 POSSIBLE NEW FEATURES
 
+- refactor messages, use plain bytes instead of objects.
 
 - si nadie envida, show power gallina!
 

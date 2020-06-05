@@ -43,8 +43,7 @@ public class AtenderCliente extends Thread {
 		wct.setSocket(this.socket);
 		//System.out.println("Server assigned socket to write connection thread");		
 		writeThread = new Thread(wct);
-		writeThread.setName("ConnectionThread-Write-Client"+thread_id);
-		
+		writeThread.setName("ConnectionThread-Write-Client"+thread_id);		
 		ConnectionThread rct = new ConnectionThread(READ, SERVER, this.connectionJobsQueue, this.controllerJobsQueue, thread_id);
 		//System.out.println("Server created read connection thread");
 		rct.setSocket(this.socket);
@@ -76,11 +75,11 @@ public class AtenderCliente extends Thread {
 			// tell server that user disconnected
 			// and to release seat_id*/			
 			synchronized(controllerJobsQueue) {
-				ClientMessage cm = new ClientMessage(CLOSE_CONNECTION,(byte) 0,"");
+				ClientMessage cm = new ClientMessage(CLOSE_CONNECTION,(byte) thread_id,"");
 				cm.setAction(CLOSE_CONNECTION);
-				ConnectionJob job = new ConnectionJob(cm);
-				job.setThreadId(thread_id);
-				controllerJobsQueue.postRequestJob(new MessageJob(cm));
+				MessageJob mj =new MessageJob(cm);
+				mj.setThreadId(thread_id);
+				controllerJobsQueue.postRequestJob(mj);
 				controllerJobsQueue.notify();
 			}
 			System.out.println("AtenderCliente de thread " + thread_id + " terminó su ejecución.");

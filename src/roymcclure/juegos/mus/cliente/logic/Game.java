@@ -1,7 +1,8 @@
 package roymcclure.juegos.mus.cliente.logic;
 
+import roymcclure.juegos.mus.cliente.UI.ClientWindow;
 import roymcclure.juegos.mus.cliente.UI.GameCanvas;
-import roymcclure.juegos.mus.common.logic.jobs.ControllerJobsQueue;
+
 
 /*
  * mostly from https://www.youtube.com/watch?v=1gir2R7G9ws
@@ -10,25 +11,31 @@ import roymcclure.juegos.mus.common.logic.jobs.ControllerJobsQueue;
  */
 
 public class Game implements Runnable {
-	
+
 	private Thread thread;
 	public static boolean running = false;
-	
+
 	private Handler handler;
 	private GameCanvas gameCanvas;
 
-	
-	public Game(ClientGameState clientGameState, ControllerJobsQueue jobs, GameCanvas gameCanvas) {		
+
+	public Game(ClientGameState clientGameState, GameCanvas gameCanvas) {		
 		handler = new Handler();
 		this.gameCanvas = gameCanvas;
 
 	}
-	
+
 	public synchronized void start() {
 		System.out.println("Game: thread starting...");
 		thread = new Thread(this);
-		thread.start();
 		running = true;
+		// so controller can start
+		synchronized(ClientWindow.semaphore) {
+			ClientWindow.semaphore.notify();
+		}
+		thread.start();
+
+
 	}
 
 	public synchronized void stop() {
@@ -43,17 +50,16 @@ public class Game implements Runnable {
 		}
 
 	}	
-	
+
 	@Override
 	public void run() {
-		running = true;
 		long lastTime = System.nanoTime();
 		double amountOfTicks = 60.0f;
 		double nsPerTick = 1000000000 / amountOfTicks;
 		double delta = 0;
-		//long timer = System.currentTimeMillis();
-		//int frames = 0;
-		
+		long timer = System.currentTimeMillis();
+		int frames = 0;
+
 		while (running) {
 			long now = System.nanoTime();
 			delta += (now - lastTime) / nsPerTick;
@@ -64,8 +70,8 @@ public class Game implements Runnable {
 			}
 			if(running)
 				render();
-			//frames++;
-			
+			frames++;
+
 			// System.out.println("frames:" + frames);
 			long then = System.nanoTime();
 			try {
@@ -77,23 +83,27 @@ public class Game implements Runnable {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			
+
 			// prints FPS every second
-			/*if (System.currentTimeMillis() - timer > 1000) {
+			if (System.currentTimeMillis() - timer > 1000) {
 				timer += 1000;
-				System.out.println("FPS:" + frames);
-				//frames = 0;
-			}*/			
+				//System.out.println("FPS:" + frames);
+				frames = 0;
+			}			
 		}
 
 	}
-	
+
 	private void update() {
-		handler.update();
+		synchronized(handler) {
+			handler.update();
+		}
 	}
-	
+
 	private void render() {
-		gameCanvas.render(handler);
+		synchronized(handler) {
+			gameCanvas.render(handler);			
+		}
 	}
 
 	public Handler getHandler() {
@@ -101,5 +111,5 @@ public class Game implements Runnable {
 		return this.handler;
 	}
 
-	
+
 }

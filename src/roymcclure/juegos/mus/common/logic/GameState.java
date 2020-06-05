@@ -88,5 +88,25 @@ public class GameState implements Serializable {
 	public GameState clone() {
 		return new GameState(piedras_juego, juegos_vaca, vacas_partida, player_ids, gameState);
 	}
+
+	public void printContent() {
+		switch(getServerGameState()) {
+		case WAITING_ALL_PLAYERS_TO_CONNECT:
+			System.out.println("SERVER STATE: ESPERANDO A QUE TODOS SE CONECTEN");				
+			break;
+		case WAITING_ALL_PLAYERS_TO_SEAT:
+			System.out.println("SERVER STATE: ESPERANDO A QUE TODOS SE SIENTEN");
+			break;
+		case PLAYING:
+			System.out.println("SERVER STATE: JUGANDO");
+			break;
+		case GAME_FINISHED:
+			System.out.println("SERVER STATE: JUEGo TERMINADO");
+			break;
+		case END_OF_ROUND:
+			System.out.println("SERVER STATE: FIN DE LA RONDA");
+			break;
+		}		
+	}
 	
 }

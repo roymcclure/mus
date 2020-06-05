@@ -5,15 +5,17 @@ import javax.swing.SwingUtilities;
 import roymcclure.juegos.mus.common.logic.GameState;
 import roymcclure.juegos.mus.common.logic.PlayerState;
 import roymcclure.juegos.mus.common.logic.cards.Carta;
+import roymcclure.juegos.mus.common.logic.cards.Jugadas;
+
 import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.*;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 
 import roymcclure.juegos.mus.server.logic.SrvMus;
 
@@ -29,11 +31,17 @@ public class Principal {
 
 			@Override
 			public void run() {
-				File cfgFile = new File("server.cfg");
-				FileReader fr;
 				try {
-					fr = new FileReader(cfgFile);
-					BufferedReader br = new BufferedReader(fr);
+					InputStream in = this.getClass().getResourceAsStream("/server.cfg");
+					BufferedReader br = null;
+					FileReader fr = null;					
+					if (in!=null) {
+						br = new BufferedReader(new InputStreamReader(in));						
+					} else {
+						File cfgFile = new File("server.cfg");
+						fr = new FileReader(cfgFile);
+						br = new BufferedReader(fr);
+					}
 					String line = "";
 					while ((line = br.readLine())!=null) {
 						int eq_indx = line.indexOf('=')+1;
@@ -63,7 +71,9 @@ public class Principal {
 							serverWindow.runOnStart();
 						}
 					}
-					fr.close();
+					if (fr!=null) {
+						fr.close();
+					}
 					br.close();
 				} catch (FileNotFoundException e) {
 					// TODO Auto-generated catch block
@@ -75,15 +85,25 @@ public class Principal {
 				}
 				
 				
-				/*
-				PlayerState p = new PlayerState();
+				
+				PlayerState mano = new PlayerState();
 				Carta[] cartas = new Carta[CARDS_PER_HAND];
-				cartas[0] = new Carta((byte) 5);
-				cartas[1] = new Carta((byte) 4);
-				cartas[2] = new Carta((byte) 10);
-				cartas[3] = new Carta((byte) 11);
-				p.setCartas(cartas);
-				System.out.println("valor de pares " + p.valorPares());*/
+				cartas[0] = new Carta((byte) 1);
+				cartas[1] = new Carta((byte) 1);
+				cartas[2] = new Carta((byte) 3);
+				cartas[3] = new Carta((byte) 4);
+				mano.setCartas(cartas);
+
+				PlayerState postre = new PlayerState();
+				Carta[] cartas2 = new Carta[CARDS_PER_HAND];
+				cartas2[0] = new Carta((byte) 1);
+				cartas2[1] = new Carta((byte) 1);
+				cartas2[2] = new Carta((byte) 3);
+				cartas2[3] = new Carta((byte) 4);
+				postre.setCartas(cartas2);				
+				
+				
+				System.out.println(" resultado:" +Jugadas.ganaAChica(mano, postre));
 				
 			}			
 		});

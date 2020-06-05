@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="WINDOWS-1252" standalone="no"?>
+<jardesc>
+    <jar path="Z:/Development/PlatformIndependent/Java Projects/mus_local/server_mus.jar"/>
+    <options buildIfNeeded="true" compress="true" descriptionLocation="/mus_local_mus/description_server.jardesc" exportErrors="false" exportWarnings="true" includeDirectoryEntries="false" overwrite="true" saveDescription="true" storeRefactorings="false" useSourceFolders="false"/>
+    <storedRefactorings deprecationInfo="true" structuralOnly="false"/>
+    <selectedProjects/>
+    <manifest generateManifest="true" mainClassHandleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.server.UI{Principal.java[Principal" manifestLocation="/mus_local_mus/manifest" manifestVersion="1.0" reuseManifest="false" saveManifest="true" usesManifest="true">
+        <sealing sealJar="true">
+            <packagesToSeal/>
+            <packagesToUnSeal/>
+        </sealing>
+    </manifest>
+    <selectedElements exportClassFiles="true" exportJavaFiles="false" exportOutputFolder="false">
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.common.logic"/>
+        <file path="/mus_local_mus/server.cfg"/>
+        <file path="/mus_local_mus/manifest"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.server.UI"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.server.network"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.common.logic.cards"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.common.network"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.common.logic.jobs"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.server.logic"/>
+    </selectedElements>
+</jardesc>

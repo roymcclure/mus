@@ -12,6 +12,7 @@ import java.awt.image.BufferStrategy;
 
 import roymcclure.juegos.mus.cliente.logic.Handler;
 import roymcclure.juegos.mus.cliente.logic.jobs.InputReceivedJob;
+import roymcclure.juegos.mus.cliente.network.ClientConnection;
 import roymcclure.juegos.mus.common.logic.jobs.ControllerJobsQueue;
 
 import static roymcclure.juegos.mus.common.logic.Language.MouseInputType.*;
@@ -26,6 +27,7 @@ public class GameCanvas extends Canvas {
 		this.setMinimumSize(new Dimension(UIParameters.CANVAS_WIDTH, UIParameters.CANVAS_HEIGHT));
 		this.setMaximumSize(new Dimension(UIParameters.CANVAS_WIDTH, UIParameters.CANVAS_HEIGHT));		
 		this.addMouseListener(new MusMouseListener(jobs));
+		
 		this.addMouseMotionListener(new MouseMotionListener() {
 			
 			@Override
@@ -33,24 +35,27 @@ public class GameCanvas extends Canvas {
 				
 				// dont want to overwhelm the job queue with redundant info
 				// so i make the preselection here
-				int i = UIParameters.getCardPosUnderMouse(e.getX(), e.getY());
-				if (i!=-1) {
-					if (!UIParameters.mouseIsOverCard) {
-						UIParameters.mouseIsOverCard = true;
-						jobs.postRequestJob(new InputReceivedJob(i, e.getY(),MOUSE_ENTERED_CARD));
-						synchronized(jobs) {
-							jobs.notify();
+				if (ClientConnection.isConnected()) {
+					int i = UIParameters.getCardPosUnderMouse(e.getX(), e.getY());
+					if (i!=-1) {
+						if (!UIParameters.mouseIsOverCard) {
+							UIParameters.mouseIsOverCard = true;
+							jobs.postRequestJob(new InputReceivedJob(i, e.getY(),MOUSE_ENTERED_CARD));
+							synchronized(jobs) {
+								jobs.notify();
+							}
+						}	
+					} else {
+						if (UIParameters.mouseIsOverCard) {
+							UIParameters.mouseIsOverCard = false;
+							jobs.postRequestJob(new InputReceivedJob(e.getX(), e.getY(),MOUSE_EXITED_CARD));
+							synchronized(jobs) {
+								jobs.notify();
+							}						
 						}
-					}	
-				} else {
-					if (UIParameters.mouseIsOverCard) {
-						UIParameters.mouseIsOverCard = false;
-						jobs.postRequestJob(new InputReceivedJob(e.getX(), e.getY(),MOUSE_EXITED_CARD));
-						synchronized(jobs) {
-							jobs.notify();
-						}						
-					}
-				}								
+					}								
+					
+				}
 			}
 			
 			@Override
@@ -85,7 +90,7 @@ public class GameCanvas extends Canvas {
 	public void render(Handler handler) {
 		BufferStrategy bs = this.getBufferStrategy();
 		if (bs == null) {
-			this.createBufferStrategy(3);
+			this.createBufferStrategy(2);
 			return;
 		}
 		Graphics g = bs.getDrawGraphics();

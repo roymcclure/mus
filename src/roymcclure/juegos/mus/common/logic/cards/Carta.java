@@ -59,6 +59,7 @@ public class Carta implements Serializable, Comparator<Carta> {
 		return (byte) (num + 1);
 	}
 
+	// valor de una carta en el contexto de juego
 	public byte valorJuego() {
 		byte num = (byte) (this.getId() % CARDS_PER_SUIT);
 		if (num== 2 || num== 9 || num == 10 || num == 11)
@@ -70,21 +71,21 @@ public class Carta implements Serializable, Comparator<Carta> {
 
 	public byte valor() {
 		byte num = (byte) (this.getId() % CARDS_PER_SUIT);
-		if (num== 2 || num== 9 || num == 10 || num == 11)
-			return 10;
 		if (num == 1)
 			return 1;
+		if (num== 2)
+			return 12;
 		return (byte) (num + 1);
 	}	
 
 	public boolean isPito() {
-		byte card_id = this.getId();
+    	byte card_id = (byte) (this.getId() % CARDS_PER_SUIT);
     	return card_id==0 || card_id == 1;
 	}
 
 	@Override
-	public int compare(Carta arg0, Carta arg1) {
-		return ((Integer)((int)arg0.valor())).compareTo((Integer)((int)arg1.valor())); 
+	public int compare(Carta carta1, Carta carta2) {
+		return (new Integer(carta1.valor())).compareTo(new Integer(carta2.valor())); 
 	}
 	
 	public boolean compareTo(Carta otraCarta) {

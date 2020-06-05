@@ -112,5 +112,10 @@ public class Baraja implements Serializable {
 	public int size() {
 		return baraja.size();
 	}
+
+	public void vaciar() {
+		baraja.clear();
+		
+	}
 	
 }

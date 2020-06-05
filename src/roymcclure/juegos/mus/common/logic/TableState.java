@@ -74,11 +74,11 @@ public class TableState implements Serializable  {
 			this.pares[i] = false;
 			this.juego[i] = false;
 		}
-		
+
 		for (int i = 0; i <= JUEGO; i++) {
 			this.enPaso[i] = true;
 		}
-		
+
 	}
 
 	public TableState(PlayerState[] clients, byte piedras_norte_sur, byte piedras_oeste_este, byte juegos_norte_sur,
@@ -126,6 +126,46 @@ public class TableState implements Serializable  {
 		this.previous_lance = previous_lance;
 	}
 
+	public TableState(TableState tableState) {
+		System.out.println("Creando copia de TAbleState");
+		this.clients = new PlayerState[MAX_CLIENTS];
+		this.pares = new boolean[MAX_CLIENTS];
+		this.juego = new boolean[MAX_CLIENTS];
+		this.enPaso = new boolean[JUEGO+1];
+		for (int i = 0; i < MAX_CLIENTS; i++) {
+			System.out.println("Creando copia de clients[i]:");
+			this.clients[i] = new PlayerState(tableState.getClient(i));
+			this.pares[i] = tableState.pares[i];
+			this.juego[i] = tableState.juego[i];
+		}
+		System.out.println("Creando copia de enPaso[]");
+		for (int i = 0; i <= JUEGO; i++) {
+			this.enPaso[i] = tableState.enPaso[i];
+		}
+		this.piedras_norte_sur = tableState.piedras_norte_sur;
+		this.piedras_oeste_este = tableState.piedras_oeste_este;
+		this.juegos_norte_sur = tableState.juegos_norte_sur;
+		this.juegos_oeste_este = tableState.juegos_oeste_este;
+		this.vacas_norte_sur = tableState.vacas_norte_sur;
+		this.vacas_oeste_este = tableState.vacas_oeste_este;
+		this.jugador_debe_hablar = tableState.jugador_debe_hablar;
+		this.piedras_envidadas_ronda_actual = tableState.piedras_envidadas_ronda_actual;
+		this.id_ronda = tableState.id_ronda;
+		this.tipo_lance = tableState.tipo_lance;
+		this.piedras_envidadas_a_grande = tableState.piedras_envidadas_a_grande;
+		this.piedras_envidadas_a_chica = tableState.piedras_envidadas_a_chica;
+		this.piedras_envidadas_a_pares = tableState.piedras_envidadas_a_pares;
+		this.piedras_envidadas_a_juego = tableState.piedras_envidadas_a_juego;	
+		this.jugadores_hablado_en_turno_actual =tableState.jugadores_hablado_en_turno_actual;
+		this.ultimo_envidador = tableState.ultimo_envidador;
+		this.piedras_acumuladas_en_apuesta = tableState.piedras_acumuladas_en_apuesta;
+		this.ordago_lanzado = tableState.ordago_lanzado;
+		this.mano_id = tableState.mano_id;
+		this.piedras_en_ultimo_envite = tableState.piedras_en_ultimo_envite;
+		this.baraja = tableState.baraja.clone();
+		// i purposefully do not include discarded deck here. clients shouldnt know whats in it.
+		this.previous_lance = tableState.previous_lance;
+	}
 
 	// clone the TableState for a particular player
 	public TableState clone(String playerID) {
@@ -374,6 +414,7 @@ public class TableState implements Serializable  {
 	}
 
 	public void printContent() {
+		System.out.println("Sentados:");
 		for (int i = 0; i < MAX_CLIENTS; i++) {
 			System.out.print("seat_id[" + i + "]:" + clients[i].getID() + " | ");
 		}
@@ -437,37 +478,82 @@ public class TableState implements Serializable  {
 	public void setGamePhase(byte lance) {
 		this.previous_lance = this.tipo_lance;
 		this.tipo_lance = lance;
-		this.onGamePhaseChange();
+		if (lance == FIN_RONDA) {
+			onEndOfRoundReached();
+		}
 	}
 
-	private void onGamePhaseChange() {
-		if (tipo_lance == FIN_RONDA) {
-			if (isOrdago_lanzado()) {
-				byte winner=getGanador(previous_lance);
-				System.out.println("ganador de ese ordago es " + winner);
-				addJuegoToTeamOf(winner);				
-			}	else {
-				// hacer los cambios de estado que se visualizan en showSpeechBubblesForEndOfRound
-				for (byte i = GRANDE; i <= JUEGO; i++) {
-					// para cada ronda en orden
-					// si la ronda era jugable
-					if (rondaWasPlayable(i)) {
-						
-					}
-					byte winner_seat_id = table().getGanador(i);
-					// 	si quedó en paso, se le da al ganador					
-					if (table().lanceQuedoEnPaso(i)) { 
+	// called AFTER we went into end of round
+	private void onEndOfRoundReached() {
+		if (isOrdago_lanzado()) {
+			byte winner=getGanador(previous_lance);
+			System.out.println("ganador de ese ordago es " + winner);
+			addJuegoToTeamOf(winner);
+			piedras_norte_sur = 0;
+			piedras_oeste_este = 0;
+		} else {
+			// hacer los cambios de estado que se visualizan en showSpeechBubblesForEndOfRound
+			for (byte i = GRANDE; i <= JUEGO; i++) {
+				// para cada ronda en orden
+				// si la ronda era jugable					
+				// 	si quedó en paso, se le da al ganador
+				System.out.println("=====================================");
+				if (rondaWasPlayable(i)) {
+					System.out.println("ronda " + Language.StringLiterals.LANCES[i] + " was playable");
+					// grande y chica siempre entran aqui
+					byte winner_seat_id = this.getGanador(i);
+					System.out.println("this round's winner is " + clients[winner_seat_id].getName());
+					if (this.lanceQuedoEnPaso(i)) {
+						// la ronda era jugable, pero quedó en paso
+						// una piedra porque quedó en paso
+						System.out.println("Lance quedo en paso");
 						addPiedrasToTeamOf(winner_seat_id, (byte) 1);
 					} else {
-						addPiedrasToTeamOf(winner_seat_id, piedrasApostadasEnRonda(i));						
+						System.out.println("Lance no estaba en paso, añadiendo " + piedrasApostadasEnRonda(i) + " a equipo de " + clients[winner_seat_id].getName());							
+						addPiedrasToTeamOf(winner_seat_id, piedrasApostadasEnRonda(i));
 					}
-				}				
-				
-			}
-		}		
-	}	
+					if (i==PARES) {
+						System.out.println("Lance pares, añadiendo " + Jugadas.valorEnPiedrasMano(PARES, clients[winner_seat_id]) + " a equipo de " + clients[winner_seat_id].getName());
+						addPiedrasToTeamOf(winner_seat_id, Jugadas.valorEnPiedrasMano(PARES, clients[winner_seat_id]));
+						System.out.println("Lance pares, añadiendo piedras de valor en piedras " + Jugadas.valorEnPiedrasMano(PARES, clients[opuesto(winner_seat_id)]));
+						byte partner = opuesto(winner_seat_id);
+						addPiedrasToTeamOf(partner, Jugadas.valorEnPiedrasMano(PARES, clients[partner]));
+					}
+					if (i==JUEGO) {
+						System.out.println("Lance pares, añadiendo piedras de valor en piedras " + Jugadas.valorEnPiedrasMano(JUEGO, clients[winner_seat_id]));							
+						addPiedrasToTeamOf(winner_seat_id, Jugadas.valorEnPiedrasMano(JUEGO, clients[winner_seat_id]));
+						System.out.println("Lance pares, añadiendo piedras de valor en piedras " + Jugadas.valorEnPiedrasMano(JUEGO, clients[opuesto(winner_seat_id)]));							
+						addPiedrasToTeamOf(opuesto(winner_seat_id), Jugadas.valorEnPiedrasMano(JUEGO, clients[opuesto(winner_seat_id)]));								
+					}
+				} else {
+					System.out.println("ronda " + Language.StringLiterals.LANCES[i] + " was NOT playable");						
+					switch(i) {
+					case PARES:
+						for (byte j = 0; j < MAX_CLIENTS; j++) {
+							if (this.tienePares(j))
+								addPiedrasToTeamOf(j,Jugadas.valorEnPiedrasMano(PARES,this.getClient(j)));
+						}
+						break;
+					case JUEGO:
+						for (byte j = 0; j < MAX_CLIENTS; j++) {
+							if (this.tieneJuego(j))
+								addPiedrasToTeamOf(j,Jugadas.valorEnPiedrasMano(JUEGO, this.getClient(j)));
+						}
+						break;
+					}
+				}
 
-	
+			}
+			if ( piedras_norte_sur >= GameState.base_piedras_juego) {
+				addJuegoToTeamOf((byte) 0);
+			} else if(piedras_oeste_este >= GameState.base_piedras_juego) {
+				addJuegoToTeamOf((byte) 1);				
+			}
+		}
+		id_ronda++;
+	}
+
+
 
 	public boolean rondaWasPlayable(byte tipo_lance) {
 		switch(tipo_lance) {
@@ -482,7 +568,7 @@ public class TableState implements Serializable  {
 		return false;
 
 	}
-	
+
 	public byte piedrasApostadasEnRonda(byte i) {
 		switch(i) {
 		case GRANDE:
@@ -541,15 +627,12 @@ public class TableState implements Serializable  {
 	// nos devuelve el seat_id de la mano del equipo donde no está seat_id
 	// TODO: no me termina de encantar. set for refactor.
 	public byte getManoOtroEquipo(byte player_seat_id) {
-		int ret;
-		byte mano = getMano_seat_id();
+		byte ret;
 		// get id of current mano
-		if (mano % 2 == player_seat_id % 2) {
-			ret = (getMano_seat_id()-1);
+		if (mano_id % 2 == player_seat_id % 2) {
+			ret = nextTableSeatId(mano_id);
 		} else ret = getMano_seat_id();
-		if (ret==-1)
-			ret = 3;
-		return (byte)ret;
+		return ret;
 	}
 
 
@@ -568,7 +651,11 @@ public class TableState implements Serializable  {
 	// increases the game phase
 	// sets pares and juego 
 	public void advanceLance() {
-		tipo_lance++;
+		if (tipo_lance == FIN_RONDA) {
+			tipo_lance = MUS;
+		} else {
+			tipo_lance++;
+		}
 		if (tipo_lance==GamePhase.PARES ) {
 			// fill the pares boolean array
 			for (int i = 0; i < MAX_CLIENTS; i++) {
@@ -599,7 +686,10 @@ public class TableState implements Serializable  {
 		if (i%2==0) {
 			if (piedras_acumuladas_en_apuesta == 0) {
 				if (this.getGamePhase()==JUEGO) {
-					piedras_norte_sur+=2;					
+					if (seJuegaAlPunto())
+						piedras_norte_sur+=2;
+					else
+						piedras_norte_sur+=1;
 				} else {
 					piedras_norte_sur+=1;
 				}
@@ -610,7 +700,10 @@ public class TableState implements Serializable  {
 		else {
 			if (piedras_acumuladas_en_apuesta == 0) {
 				if (this.getGamePhase()==JUEGO) {
-					piedras_oeste_este+=2;					
+					if (seJuegaAlPunto())
+						piedras_oeste_este+=2;
+					else
+						piedras_oeste_este+=1;
 				} else {
 					piedras_oeste_este+=1;
 				}
@@ -630,11 +723,32 @@ public class TableState implements Serializable  {
 		return (byte) ((seat_id - 1 == -1) ? MAX_CLIENTS - 1 : (seat_id - 1 ));
 	}
 
+	// TODO: this probably makes much more sense than pasarAsiguienteLance()
+	public void pasarALance(byte lance) {
+		switch (lance) {
+		case MUS:
+			break;
+		case DESCARTE:
+			break;
+		case GRANDE:
+			break;
+		case CHICA:
+			break;
+		case PARES:
+			break;
+		case JUEGO:
+			break;
+		case FIN_RONDA:
+			break;
+		}
+	}
+	
 	// pasa al siguiente lance y determina quién debe hablar
+	// todo: pretty cluttered, refactor
 	public void pasarASiguienteLance() {
+		resetTalked();
 		resetRoundScore();
 		this.advanceLance();
-		setJugadores_hablado_en_turno_actual((byte) 0);
 		if (tipo_lance == PARES && seJueganPares()) {
 			setJugador_debe_hablar(primeroConPares());
 		} else if (tipo_lance == JUEGO && seJuegaJuego()) {
@@ -644,7 +758,8 @@ public class TableState implements Serializable  {
 				setJugador_debe_hablar(primeroConJuego());
 			}
 		} else if (tipo_lance == FIN_RONDA) {
-
+			// es aqui donde se evaluan
+			onEndOfRoundReached();
 		} else {
 			setJugador_debe_hablar(getMano_seat_id());	
 		}
@@ -670,7 +785,7 @@ public class TableState implements Serializable  {
 	private byte primeroConJuego() {
 		byte i = getMano_seat_id();
 		do {
-			if (juego[i])
+			if (clients[i].valorJuego()>30)
 				return i;
 			i = nextTableSeatId(i);
 		} while(i!=getMano_seat_id());
@@ -680,21 +795,21 @@ public class TableState implements Serializable  {
 	public boolean seJueganPares() {
 		byte sig = nextTableSeatId(mano_id);
 		return (tienePares(mano_id) || tienePares(opuesto(mano_id))) && (tienePares(sig) || tienePares(opuesto(sig)));  
-		
+
 	}
 
 	public boolean seJuegaAlPunto() {
 		byte sig = nextTableSeatId(mano_id);
 		return !tieneJuego(mano_id) && !tieneJuego(opuesto(mano_id)) && !tieneJuego(sig) && !tieneJuego(opuesto(sig));
 	}
-	
+
 	public boolean seJuegaJuego() {
 		byte sig = nextTableSeatId(mano_id);
 		boolean envite = (tieneJuego(mano_id) || tieneJuego(opuesto(mano_id))) && (tieneJuego(sig) || tieneJuego(opuesto(sig)));
-		return envite || seJuegaAlPunto() ;
+		return envite || seJuegaAlPunto();
 	}
 
-	// based on the table state, sets who the next person to talk should be
+	// assigns next talking person AFTER ENVITE or ORDAGO
 	public void assignNextTalker() {
 		byte player_seat_id = getJugador_debe_hablar();
 		// next person that should talk is the mano of the other team
@@ -710,12 +825,23 @@ public class TableState implements Serializable  {
 				setJugador_debe_hablar(opuesto(mano_otro_equipo));						
 			}
 		} else if (getGamePhase() == JUEGO){
-			byte mano_otro_equipo = getManoOtroEquipo(player_seat_id);					
-			if (juego[mano_otro_equipo]) {
+			System.out.println("assignNextTalker: ESTAMOS EN FASE DE JUEGO");
+			if (!this.seJuegaAlPunto()) {
+				System.out.println("assignNextTalker: NO SE JUEGA AL PUNtO");
+				byte mano_otro_equipo = getManoOtroEquipo(player_seat_id);					
+				if (juego[mano_otro_equipo]) {
+					setJugador_debe_hablar(mano_otro_equipo);
+				} else {						
+					setJugador_debe_hablar(opuesto(mano_otro_equipo));						
+				}
+			} else {
+				//System.out.println("assignNextTalker: SE JUEGA AL PUNtO");				
+				byte mano_otro_equipo = getManoOtroEquipo(player_seat_id);
+				//System.out.println("assignNextTalker: LA MANO DEL OTRO EQUIPO ES " + mano_otro_equipo);
 				setJugador_debe_hablar(mano_otro_equipo);
-			} else {						
-				setJugador_debe_hablar(opuesto(mano_otro_equipo));						
+				//System.out.println("assignNextTalker: asignamos turno a " + getJugador_debe_hablar());
 			}
+
 		}
 
 	}
@@ -766,9 +892,11 @@ public class TableState implements Serializable  {
 	}
 
 	public byte siguienteConJuego(byte player_seat_id) {
-		while ((player_seat_id = nextTableSeatId(player_seat_id))!=mano_id) {
-			if (juego[player_seat_id])
-				return player_seat_id;
+		byte sig = nextTableSeatId(player_seat_id);
+		while (sig!=player_seat_id) {
+			if (clients[sig].valorJuego() > 30)
+				return sig;
+			sig = nextTableSeatId(sig);
 		}
 		return -1;
 	}
@@ -781,7 +909,7 @@ public class TableState implements Serializable  {
 			juegos_oeste_este++;
 		}
 	}
-	
+
 	public void addPiedrasToTeamOf(byte winner, byte piedras) {
 		if (winner % 2 == 0) {
 			piedras_norte_sur+=piedras;
@@ -839,61 +967,75 @@ public class TableState implements Serializable  {
 	}
 
 	// returns the absolute seat id of ganador ordago
-	// TODO: these cases are very similar, refactor into method
+	// TODO: these cases are very similar, refactor into method possible?
 	public byte getGanador(byte tipo_lance) {
 		// chica y grande:partiendo de la mano, buscamos la jugada más grande
-		byte winner = -1, sig, inicial;
+		byte winner = -1, sig;
 		switch(tipo_lance) {
 		case GRANDE:
 			winner = getMano_seat_id();
-			System.out.println("WINNER es " + winner);
-
 			sig = nextTableSeatId(winner);
 			System.out.println("SIG es " + sig);
-			for (byte i = 1; i < MAX_CLIENTS; i++) {
+			while (sig != getMano_seat_id()) {
 				if (!Jugadas.ganaAGrande(this.getClient(winner), this.getClient(sig))) {
 					winner = sig;
 				}
 				sig = nextTableSeatId(sig);
 			}
+			System.out.println("WINNER de grande es " + winner);			
 			break;
 		case CHICA:
 			winner = getMano_seat_id();
+			System.out.println("asigno " + getMano_seat_id() + " a winner");
 			sig = nextTableSeatId(winner);
-			for (byte i = 1; i < MAX_CLIENTS; i++) {
+			System.out.println("asigno " + nextTableSeatId(winner) + " a sig");			
+			while (sig != getMano_seat_id()) {
 				if (!Jugadas.ganaAChica(this.getClient(winner), this.getClient(sig))) {
 					winner = sig;
+					System.out.println("asigno " + sig + " a winner");					
 				}
 				sig = nextTableSeatId(sig);
+				System.out.println("asigno " + nextTableSeatId(sig) + " a sig");				
 			}
-			break;		
+			System.out.println("WINNER de chica es " + winner);			
+			break;
 		case PARES:
 			winner = primeroConPares();
-			inicial = winner;			
 			sig = siguienteConPares(winner);
-			while(sig!=inicial) {
+			while(sig!=primeroConPares()) {
 				if (!Jugadas.ganaAPares(this.getClient(winner), this.getClient(sig))) {
 					winner = sig;
 				}
 				sig = siguienteConPares(sig);
 			}
+			System.out.println("WINNER de pares es " + winner);			
 			break;
 		case JUEGO:
 			if (seJuegaAlPunto()) {
 				winner = mano_id;
-				
+				sig = TableState.nextTableSeatId(winner);
+				while (sig != mano_id) {
+					if (!Jugadas.ganaAlPunto(this.getClient(winner), this.getClient(sig))) {
+						winner = sig;
+					}
+					sig = TableState.nextTableSeatId(sig); 
+				}
+				System.out.println("WINNER de juego al punto es " + winner);
 			} else {
+				System.out.println("Evaluando juego, no se juega al punto.");
 				winner = primeroConJuego();
-				inicial = winner;			
+				System.out.println("winner se le asigna " + winner);				
 				sig = siguienteConJuego(winner);
-				while(sig!=inicial) {
+				System.out.println("sig se le asigna " + sig);				
+				while (sig != primeroConJuego()) {
 					if (!Jugadas.ganaJuego(this.getClient(winner), this.getClient(sig))) {
 						winner = sig;
 					}
-					sig = siguienteConPares(sig);
-				}	
+					sig = siguienteConJuego(sig);
+				}
+				System.out.println("WINNER de juego (no punto) es " + winner);
 			}
-						
+
 			break;
 		}
 		return winner;		
@@ -902,9 +1044,14 @@ public class TableState implements Serializable  {
 	public void setEnPaso(byte game_phase, boolean value) {
 		enPaso[game_phase] = value;
 	}
-	
+
 	public boolean lanceQuedoEnPaso(byte game_phase) {
 		return enPaso[game_phase];
+	}
+
+	public Baraja getBarajaDescartes() {
+		return barajaDescartes;
+
 	}
 
 

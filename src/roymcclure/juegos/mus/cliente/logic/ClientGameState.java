@@ -20,7 +20,7 @@ public class ClientGameState {
 	// when the next messages with the same game phase arrive.
 	private static byte pares_hablados = 0;
 	private static byte juego_hablados = 0;
-	// disable clicks when bubble speech is displayed
+	// initially disabled. we will enable once we receive an answer to REQUEST_STATE
 	private static boolean clickEnabled = true;
 
 	// data shared with the rest of nodes
@@ -115,7 +115,9 @@ public class ClientGameState {
 	}
 
 	public static PlayerState me() {
-		return table().getClient(my_seat_id());
+		if (my_seat_id() != -1)
+			return table().getClient(my_seat_id());
+		return null;
 	}
 
 

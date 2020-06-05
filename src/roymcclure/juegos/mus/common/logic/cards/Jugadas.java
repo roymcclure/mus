@@ -24,15 +24,15 @@ public class Jugadas {
 			// creamos copia de ambas manos
 			ArrayList<Carta> copiaManoJugador1 = mano.getMano();
 			ArrayList<Carta> copiaManoJugador2 = postre.getMano();
+			/* superfluo
 			// eliminamos referencias a cerdos de ambas manos
 			eliminarCerdos(copiaManoJugador1);
-			eliminarCerdos(copiaManoJugador2);			
+			eliminarCerdos(copiaManoJugador2);*/			
 			// con lo que resta, vamos comparando la carta mas alta
 
 			
 			while (!copiaManoJugador1.isEmpty() && !copiaManoJugador2.isEmpty() && 
-				(Jugadas.cartaMasAlta(copiaManoJugador1).valor() == 
-						Jugadas.cartaMasAlta(copiaManoJugador2).valor())) {
+				(Jugadas.cartaMasAlta(copiaManoJugador1).valor() == Jugadas.cartaMasAlta(copiaManoJugador2).valor())) {
 				copiaManoJugador1.remove(Jugadas.cartaMasAlta(copiaManoJugador1));
 				copiaManoJugador2.remove(Jugadas.cartaMasAlta(copiaManoJugador2));				
 			}
@@ -51,29 +51,45 @@ public class Jugadas {
 	// IMPORTANTE: jugador1 SIEMPRE es mano sobre jugador2 es postre, esto hay que tenerlo
 	// en cuenta a la hora de hacer las llamadas
 	public static boolean ganaAChica(PlayerState mano, PlayerState postre)  {
+		System.out.println("Gana a chica: comparando estas manos.");
+		mano.printCartas();
+		System.out.println("\ncon esta:");
+		postre.printCartas();
 		if (mano.numeroPitos() > postre.numeroPitos()) {
+			System.out.println("mano tiene más pitos que postre");
 			return true;
 		} else if (mano.numeroPitos() < postre.numeroPitos()) {
+			System.out.println("mano tiene menos pitos que postre");			
 			return false;
 		} else {
 			// empatados a pitos. carta más baja.
 			// creamos copia de ambas manos
 			ArrayList<Carta> copiaManoJugador1 = mano.getMano();
+			System.out.println("En mano hay:");
+			System.out.println(copiaManoJugador1);
 			ArrayList<Carta> copiaManoJugador2 = postre.getMano();
+			/* superfluo
 			// eliminamos referencias a pitos de ambas manos
 			eliminarPitos(copiaManoJugador1);
-			eliminarPitos(copiaManoJugador2);			
+			eliminarPitos(copiaManoJugador2);
+			*/
+			
 			// con lo que resta, vamos comparando la carta mas alta
 
-			while (!copiaManoJugador1.isEmpty() && !copiaManoJugador2.isEmpty() && 
-				Jugadas.cartaMasBaja(copiaManoJugador1).valor() == 
-						Jugadas.cartaMasBaja(copiaManoJugador2).valor()) {
+			while (!copiaManoJugador1.isEmpty() && !copiaManoJugador2.isEmpty() 
+					&& Jugadas.cartaMasBaja(copiaManoJugador1).valor() == Jugadas.cartaMasBaja(copiaManoJugador2).valor()) {
 				copiaManoJugador1.remove(Jugadas.cartaMasBaja(copiaManoJugador1));
 				copiaManoJugador2.remove(Jugadas.cartaMasBaja(copiaManoJugador2));				
 			}
 
 			// ambas manos vacias == tenian misma jugada, por tanto gana la mano
 			// TODO: revisar, esto no bien wei
+			if (copiaManoJugador1.size()>0) {
+				System.out.println("Valor de la carta más baja de mano es " + cartaMasBaja(copiaManoJugador1).valor());
+			}
+			if (copiaManoJugador2.size()>0) {
+				System.out.println("Valor de la carta más baja de postre es " + cartaMasBaja(copiaManoJugador2).valor());
+			}			
 			if ((copiaManoJugador1.size() == 0) && (copiaManoJugador2.size()==0)) {
 				System.out.println("ambas manos vacias");
 				return true;
@@ -142,6 +158,7 @@ public class Jugadas {
 		} else return mano.valorJuego() >= postre.valorJuego();
 	}
 
+	/*
 	// elimina los cerdos de una mano para hacer cálculos
 	private static void eliminarCerdos(ArrayList<Carta> mano) {
 
@@ -166,10 +183,11 @@ public class Jugadas {
 			if (n==0 || n == 1)
 				iter.remove();
 		}
-	}	
+	}
+	*/	
 
 	public static Carta	cartaMasAlta(ArrayList<Carta> mano) {
-		byte valor_mas_alta = -1;
+		byte valor_mas_alta = Byte.MIN_VALUE;
 		Carta masAlta = null;
 		for (Carta c : mano) {
 			byte valor = 0;
@@ -181,6 +199,7 @@ public class Jugadas {
 				valor = (byte) (c.getId() % CARDS_PER_SUIT);
 			}
 			if (valor > valor_mas_alta) {
+				valor_mas_alta = valor;
 				masAlta = c;
 			}
 		}
@@ -188,18 +207,19 @@ public class Jugadas {
 	}
 	
 	public static Carta	cartaMasBaja(ArrayList<Carta> mano) {
-		byte valor_mas_baja = (byte) 255;
+		byte valor_mas_baja = (byte) Byte.MAX_VALUE;
 		Carta masBaja = null;
 		for (Carta c : mano) {
 			byte valor = 0;
 			if (c.isCerdo()) {
-				valor = 11;
+				valor = 12;
 			} else if (c.isPito()) {
 				valor = 1;
 			} else {
 				valor = (byte) (c.getId() % CARDS_PER_SUIT);
 			}
 			if (valor < valor_mas_baja) {
+				valor_mas_baja = valor;
 				masBaja = c;
 			}
 		}
@@ -266,6 +286,11 @@ public class Jugadas {
 		case NO_PAR: return 0;
 		}
 		return 0;		
+	}
+	
+
+	public static boolean ganaAlPunto(PlayerState mano, PlayerState postre) {
+		return mano.valorJuego() > postre.valorJuego();
 	}
 
     

@@ -68,32 +68,11 @@ public class ServerMessage implements Serializable {
 	public void printContent() {
 		System.out.println("Estado de juego:");
 		System.out.println("----------------");
-		if (gameState != null) { 
-			switch(gameState.getServerGameState()) {
-			case WAITING_ALL_PLAYERS_TO_CONNECT:
-				System.out.println("SERVER STATE: ESPERANDO A QUE TODOS SE CONECTEN");				
-				break;
-			case WAITING_ALL_PLAYERS_TO_SEAT:
-				System.out.println("SERVER STATE: ESPERANDO A QUE TODOS SE SIENTEN");
-				break;
-			case PLAYING:
-				System.out.println("SERVER STATE: JUGANDO");
-				break;
-			case GAME_FINISHED:
-				System.out.println("SERVER STATE: JUEGo TERMINADO");
-				break;
-			case END_OF_ROUND:
-				System.out.println("SERVER STATE: FIN DE LA RONDA");
-				break;
-			}
-			System.out.println("Sentados:");
-			for (byte i=0; i<MAX_CLIENTS;i++)	{
-				System.out.println("Sitio " + i + ": " + tableState.getClient(i).getID());				
-			}
-		} else {
-			System.out.println("El mensaje no contiene info del estado de la partida.");
-		}		
-		
+		if (gameState != null) 
+			gameState.printContent();
+		System.out.println("Estado de la mesa:");
+		if (tableState != null)
+			tableState.printContent();		
 	}
 
 	public boolean isBroadCastMsg() {
@@ -111,6 +90,7 @@ public class ServerMessage implements Serializable {
 		return sm;
 	}
 
+	// TODO: what? this is weird... 
 	private void setClientMessage(ClientMessage cm, String playerID) {
 		this.clientMessage = new ClientMessage(cm.getAction(), cm.getQuantity(),playerID);
 		

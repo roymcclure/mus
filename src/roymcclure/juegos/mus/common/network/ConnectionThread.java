@@ -70,37 +70,7 @@ public class ConnectionThread implements Runnable   {
 						throw new Exception("Undefined mode for ConnectionThread");
 				}
 			
-			}/* catch (NullPointerException e) {
-				running = false;
-			}			
-			catch (StreamCorruptedException e) {
-				System.out.println("Invalid headers: it seems like this object's ObjectInputStream was written using an ObjectOutputStream different than the one used to write");
-				running = false;
-				e.printStackTrace();
-			} catch (EOFException e) {
-				// this is thrown in the server when client disconnects abruptly
-				// in the server's eyes its the same as disconnecting
-				// so if i am the server, i post a Close _connection job for this client
-				if (this.side == SERVER) {
-					synchronized(_controllerJobs) {
-						System.out.println("Posting a close connection job to the queue.");
-						ClientMessage cm = new ClientMessage();
-						cm.setAction(CLOSE_CONNECTION);
-						MessageJob j = new MessageJob(cm);
-						j.setThreadId(thread_id);
-						_controllerJobs.postRequestJob(j);
-						_controllerJobs.notify();
-					}
-					running = false;
-				}
-
-			}	catch (IOException e) {
-				// is this thrown ONLY when client disconnects without prior advise??
-				e.printStackTrace();
-				System.out.println("IOException in read(). Signaling parent object so he can shut all threads...");
-				running = false;			
-				
-			} */catch (Exception e) {
+			}catch (Exception e) {
 				identify();
 				System.out.println(" --> EXCEPTION CAUGHT");
 				if (e instanceof EOFException || e instanceof SocketException) {
@@ -130,8 +100,11 @@ public class ConnectionThread implements Runnable   {
 		// forge petition from job
 		if (job!=null)
 			if (this.side == SERVER) {			
+				identify();
+				System.out.print("SENDING SERVER MESSAGE...");
 				send(job.getServerMessage());
 				out.flush();
+				System.out.println("Message sent.");				
 			}
 			else if (this.side == CLIENT) {
 				send(job.getClientMessage());
@@ -161,11 +134,15 @@ public class ConnectionThread implements Runnable   {
 			ServerMessage sm;
 			//System.out.println("CLIENT CONNECTION READ THREAD: waiting for message...");			
 			sm = receiveFromServer();
-			//System.out.println("MESSAGE RECEIVED. POSTING TO CLIENT CONTROLLER JOBS....");			
+			identify();
+			System.out.println("[CONNECTION THREAD] MESSAGE RECEIVED. POSTING TO CLIENT CONTROLLER JOBS....");			
 			//sm.printContent();
 			synchronized(_controllerJobs) {
 				_controllerJobs.postRequestJob(new MessageJob(sm));
+				identify();
+				System.out.print("[CONNECTION THREAD] message posted. notifying for the client controller...");
 				_controllerJobs.notify();
+				System.out.println("notified.");
 			}
 			
 		}
@@ -176,16 +153,20 @@ public class ConnectionThread implements Runnable   {
 	}
 
 	public void setSocket(Socket socket) {
-		assert(socket!=null);		
+		//assert(socket!=null);		
 		try {
 			switch(this.operation) {
 			case WRITE:
+				System.out.println("setting socket for write");
 				out = socket.getOutputStream();
 				objOut = new ObjectOutputStream(out);				
 				break;
 			case READ:
+				System.out.print("setting socket for read..");				
 				in = socket.getInputStream();
-				objIn = new ObjectInputStream(in);				
+				System.out.println("Got input stream.");
+				objIn = new ObjectInputStream(in);
+				System.out.println("created ObjectInputStream");
 				break;
 			}			
 		} catch (IOException ex) {

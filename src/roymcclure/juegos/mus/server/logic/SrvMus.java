@@ -6,12 +6,14 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.SocketException;
-import java.util.Random;
+import java.util.ArrayList;
 
 import javax.swing.JTextArea;
 
 import roymcclure.juegos.mus.common.logic.GameState;
 import roymcclure.juegos.mus.common.logic.Language;
+import roymcclure.juegos.mus.common.logic.Language.ServerGameState;
+
 import static roymcclure.juegos.mus.common.logic.Language.ServerGameState.*;
 import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.CARDS_PER_HAND;
 import static roymcclure.juegos.mus.common.logic.Language.GamePhase.*;
@@ -47,8 +49,11 @@ public class SrvMus extends Thread {
 	private ControllerJobsQueue controllerJobsQueue;
 	private ConnectionJobsQueue[] connectionJobs;	
 	private ServerController serverController;
-	private Object key;
-	
+	private Object semaphore;
+	public static boolean disconnection = false;
+
+	private ArrayList<TableState> history;
+
 	public SrvMus (ServerWindow serverWindow) {
 		this.serverWindow = serverWindow;
 		gameState = new GameState();
@@ -58,17 +63,19 @@ public class SrvMus extends Thread {
 		for (int i = 0; i < MAX_CLIENTS; i++) {
 			connectionJobs[i] = new ConnectionJobsQueue();
 		}
-		key = new Object();
-		this.serverController = new ServerController(controllerJobsQueue, connectionJobs, gameState, tableState, this, key);	
+		semaphore = new Object();
+		this.serverController = new ServerController(controllerJobsQueue, connectionJobs, gameState, tableState, this, semaphore);	
 		Thread controllerThread = new Thread(serverController);
 		controllerThread.setName("Thread-ServerController");
 		controllerThread.start();
 		resetThreads();
 
+		history = new ArrayList<TableState>();
+
 	}
 
 
-	
+
 	private static void resetThreads() {
 		hilos = new AtenderCliente[MAX_CLIENTS];
 		for (int i=0; i<MAX_CLIENTS;i++) {
@@ -98,37 +105,39 @@ public class SrvMus extends Thread {
 			log("started.\n");			
 
 			while (running) {
+				System.out.println("[SRVMUS] entering while");
 				switch(gameState.getServerGameState()) {
 
-				case WAITING_ALL_PLAYERS_TO_CONNECT:
+				case ServerGameState.WAITING_ALL_PLAYERS_TO_CONNECT:
 					//System.out.println("Baraja ANTES de waitAllConnected()..");
 					//tableState.getBaraja().print();
 					this.waitAllConnected();
 					//System.out.println("Baraja DESPUES de waitAllConnected()..");
 					//tableState.getBaraja().print();
 					break;
-				
-				case WAITING_ALL_PLAYERS_TO_SEAT: {
+
+				case ServerGameState.WAITING_ALL_PLAYERS_TO_SEAT: {
 					this.waitingAllSeated();
 					// System.out.println("Baraja despues de waitAllConnected()..");
 					//tableState.getBaraja().print();					
 				}
 				break;
 
-				case DEALING:
- 					this.dealing();
+				case ServerGameState.DEALING:
+					this.dealing();
 					break;
-				
-				case PLAYING: {
-					this.playing();					
+
+				case ServerGameState.PLAYING: {
+					this.playing();
+					System.out.println("[SRVMUS] exited playing()");
 				}
 				break;
-				case END_OF_ROUND: {
+				case ServerGameState.END_OF_ROUND: {
 					this.endOfRound();
 				}
 
 				break;
-				case GAME_FINISHED:{
+				case ServerGameState.GAME_FINISHED:{
 					this.gameFinished();
 				}
 				break;
@@ -139,17 +148,20 @@ public class SrvMus extends Thread {
 		} catch (SocketException e) {
 
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
+			log("[SRVMUS] IOEXCEPTION");			
 		} catch (IllegalThreadStateException i) {
+			log("[SRVMUS] ILLEGALTHREADSTATEEXCEPTION");
 			try {
 				this.halt();
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
+
 			}
 		} catch (Exception e) {
 			// error barajando cartas
+			log("[SRVMUS] EXCEPTION");
 		}
 
 	}
@@ -158,8 +170,10 @@ public class SrvMus extends Thread {
 		while (clientsConnected() < MAX_CLIENTS) {
 			//	Por cada cliente se lanza un hilo que le atenderá
 			byte thread_id = getFreeThreadID(); 
-			hilos[thread_id] =
-					new AtenderCliente(socket.accept(), thread_id, this, controllerJobsQueue, connectionJobs[thread_id]);						
+			synchronized(socket) {
+				hilos[thread_id] =
+						new AtenderCliente(socket.accept(), thread_id, this, controllerJobsQueue, connectionJobs[thread_id]);
+			}
 			log("Client connected.\n");
 			hilos[thread_id].start();
 
@@ -168,31 +182,43 @@ public class SrvMus extends Thread {
 		// actualizamos el estado de juego a playing
 		gameState.setGameState(Language.ServerGameState.WAITING_ALL_PLAYERS_TO_SEAT);
 
-		
+
 	}
 
 	private void waitingAllSeated() throws IOException {
 		while(!tableState.allSeated()) {
 			try {
 				log("WAITING FOR A PLAYER TO BE SEATED");
-				synchronized(key) {
-					key.wait();
+				synchronized(semaphore) {
+					semaphore.wait();
 				}
 				log("Me informa el controller que alguien se ha sentado!");
+				if (disconnection) {
+					gameState.setGameState(WAITING_ALL_PLAYERS_TO_CONNECT);
+					break;
+				}
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
-		gameState.setGameState(Language.ServerGameState.DEALING);		
+		if (!disconnection) {
+			gameState.setGameState(Language.ServerGameState.DEALING);			
+		} else {
+			disconnection = false;
+		}
 	}
 
 	private void dealing() {
 		while(tableState.getGamePhase()!=GRANDE) {
 			try {
 				log("WAITING FOR THE CONTROLLER TO TELL ME THAT DEALING WAS FINISHED");
-				synchronized(key) {
-					key.wait();
+				synchronized(semaphore) {
+					semaphore.wait();
+				}
+				if (disconnection) {
+					gameState.setGameState(WAITING_ALL_PLAYERS_TO_CONNECT);
+					break;
 				}
 				log("[controller]: ronda descartes finalizada");
 			} catch (InterruptedException e) {
@@ -202,15 +228,19 @@ public class SrvMus extends Thread {
 		}
 		//System.out.println("DESPUES DE REPARTIR; LAS CARTAS SON LAS SIGUIENTES:");
 		//tableState.printContent();
-		gameState.setGameState(PLAYING);
+		if (!disconnection) {
+			gameState.setGameState(ServerGameState.PLAYING);
+		} else {
+			disconnection = false;
+		}
 		log("Finished dealing cards. Informing clients.");
 		// if player in turn == -1 means beginning of game, assign one randomly	
 
 	}	
-	
+
 	private void playing() {
-		synchronized(key) {
-		key.notify();
+		synchronized(semaphore) {
+			semaphore.notify();
 		}
 		// me bloqueo esperando a que controller me diga
 		// que el juego ha terminado
@@ -218,27 +248,52 @@ public class SrvMus extends Thread {
 		try {
 
 			log("WAITING FOR ROUND [" + tableState.getId_ronda() + "] TO FINISH, OR MUS");
-			synchronized(key) {
-				key.wait();
+			synchronized(semaphore) {
+				semaphore.wait();
 			}
-			log("Me informa el controller para que compruebe si acabo la ronda o si nos damos otra mano de mus.");
-			if (tableState.getId_ronda()==ronda) {
-				gameState.setGameState(DEALING);
-			}
-			else {
-				gameState.setGameState(END_OF_ROUND);
-			}
+			if (disconnection) {
+				gameState.setGameState(WAITING_ALL_PLAYERS_TO_CONNECT);
+				disconnection = false;
+			} else {
+				log("Me informa el controller para que compruebe si acabo la ronda o si nos damos otra mano de mus.");
+				if (tableState.getId_ronda()==ronda) {
+					System.out.println("[SRVMUS] ronda id es " +tableState.getId_ronda() + ", pasando a DEALING");
+					gameState.setGameState(DEALING);
+				}
+				else {
+					System.out.println("[SRVMUS] ronda id es " +tableState.getId_ronda() + ", pasando a END_Of_ROUND");				
+					gameState.setGameState(ServerGameState.END_OF_ROUND);
+				}
 
+			}
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 
-		
+
+
 	}
 
-	private void endOfRound() throws NotImplementedException {
-		if (running)
-			throw new NotImplementedException();
+	private void endOfRound() {
+		//make a copy of the tablestate add it to history
+		System.out.println("[SRVMUS] endOfRound(): adding history...");
+		history.add(new TableState(tableState));
+		log("END OF ROUND. Next round: " + tableState.getId_ronda());
+		// wait for the controller to tell me all clients said lets go to next round
+		try {
+			synchronized(semaphore) {
+				semaphore.wait();
+			}
+		} catch (InterruptedException e) {
+
+			e.printStackTrace();
+		}
+		if (tableState.getVacas_norte_sur()==gameState.getVacas_partida() || tableState.getVacas_oeste_este()==gameState.getVacas_partida()) {
+			gameState.setGameState(ServerGameState.GAME_FINISHED);
+		} else {
+			gameState.setGameState(ServerGameState.DEALING);
+		}
+
 	}
 
 	private void gameFinished() throws NotImplementedException {
@@ -339,20 +394,20 @@ public class SrvMus extends Thread {
 					String[] juego = line.split(",");
 					for (int i = 0; i< juego.length; i++) {
 						if (juego[i].equals("0")) {
-							tableState.
+							//tableState.
 						}
 					}
-												
+
 				}
 				if (line.contains("pares")) {
-					line = line.substring(eq_indx).trim();
-					tableState.setGamePhase(Byte.parseByte(line));							
+					//line = line.substring(eq_indx).trim();
+					//tableState.setGamePhase(Byte.parseByte(line));							
 				}
 				if (line.contains("en_paso")) {
-					line = line.substring(eq_indx).trim();
-					tableState.setGamePhase(Byte.parseByte(line));							
+					//line = line.substring(eq_indx).trim();
+					//tableState.setGamePhase(Byte.parseByte(line));							
 				}				
-				
+
 			}
 			serverController.broadCastGameState();
 			bfr.close();
@@ -427,14 +482,14 @@ public class SrvMus extends Thread {
 			log("Juegos oeste/este:" + tableState.getJuegos_oeste_este());
 			log("Vacas norte/sur:" + tableState.getVacas_norte_sur());
 			log("Vacas oeste/este:" + tableState.getVacas_oeste_este());
-			
+
 		}
 	}	
 
 	public void log(String text) {
 		serverWindow.log(text);
 	}
-	
+
 	private class NotImplementedException extends Exception {
 
 		/**

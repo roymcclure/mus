@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="WINDOWS-1252" standalone="no"?>
+<jardesc>
+    <jar path="Z:/Development/PlatformIndependent/Java Projects/mus_local/cliente_mus.jar"/>
+    <options buildIfNeeded="true" compress="true" descriptionLocation="/mus_local_mus/description_client.jardesc" exportErrors="true" exportWarnings="true" includeDirectoryEntries="false" overwrite="true" saveDescription="true" storeRefactorings="false" useSourceFolders="false"/>
+    <storedRefactorings deprecationInfo="true" structuralOnly="false"/>
+    <selectedProjects/>
+    <manifest generateManifest="true" mainClassHandleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.cliente.UI{ClientPrincipal.java[ClientPrincipal" manifestLocation="/mus_local_mus/manifest" manifestVersion="1.0" reuseManifest="false" saveManifest="true" usesManifest="true">
+        <sealing sealJar="true">
+            <packagesToSeal/>
+            <packagesToUnSeal/>
+        </sealing>
+    </manifest>
+    <selectedElements exportClassFiles="true" exportJavaFiles="false" exportOutputFolder="false">
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.common.logic"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.common.logic.cards"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.cliente.network"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.common.network"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.cliente.logic"/>
+        <folder path="/mus_local_mus/resources"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.cliente.UI"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.common.logic.jobs"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.cliente.logic.jobs"/>
+    </selectedElements>
+</jardesc>

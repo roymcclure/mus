@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="WINDOWS-1252" standalone="no"?>
+<jardesc>
+    <jar path="Z:/Development/PlatformIndependent/Java Projects/mus_local/cliente_mus.jar"/>
+    <options buildIfNeeded="true" compress="true" descriptionLocation="/mus_local_mus/description.jardesc" exportErrors="true" exportWarnings="true" includeDirectoryEntries="false" overwrite="true" saveDescription="true" storeRefactorings="false" useSourceFolders="false"/>
+    <storedRefactorings deprecationInfo="true" structuralOnly="false"/>
+    <selectedProjects/>
+    <manifest generateManifest="true" mainClassHandleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.cliente.UI{ClientPrincipal.java[ClientPrincipal" manifestLocation="/mus_local_mus/manifest" manifestVersion="1.0" reuseManifest="false" saveManifest="true" usesManifest="true">
+        <sealing sealJar="true">
+            <packagesToSeal/>
+            <packagesToUnSeal/>
+        </sealing>
+    </manifest>
+    <selectedElements exportClassFiles="true" exportJavaFiles="false" exportOutputFolder="false">
+        <file path="/mus_local_mus/server.bat"/>
+        <file path="/mus_local_mus/cliente.bat"/>
+        <file path="/mus_local_mus/.project"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.cliente.network"/>
+        <file path="/mus_local_mus/README.md"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.cliente.logic"/>
+        <folder path="/mus_local_mus/resources"/>
+        <file path="/mus_local_mus/state.txt"/>
+        <file path="/mus_local_mus/srvunix"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.cliente.logic.jobs"/>
+        <file path="/mus_local_mus/.classpath"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.common.logic"/>
+        <file path="/mus_local_mus/server.cfg"/>
+        <file path="/mus_local_mus/manifest"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.common.logic.cards"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.common.network"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.cliente.UI"/>
+        <javaElement handleIdentifier="=mus_local_mus/src&lt;roymcclure.juegos.mus.common.logic.jobs"/>
+        <file path="/mus_local_mus/cliunix"/>
+    </selectedElements>
+</jardesc>

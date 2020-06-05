@@ -12,11 +12,14 @@ public class ControllerJobsQueue {
 	}
 	
 	public synchronized Job getControllerJob() {		
-		Job j = controllerJobs.get(0);
-		controllerJobs.remove(0);
-		
+		Job j = controllerJobs.get(0);		
 		return j;
 	}
+	
+	public synchronized void deleteFirstJob() {
+		controllerJobs.remove(0);		
+	}
+
 	
 	public synchronized void postRequestJob(Job j) {
 		//System.out.println("A JOB was posted in the controller jobs queue.");
