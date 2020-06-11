@@ -5,7 +5,6 @@ import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.MAX_CL
 
 import java.awt.Point;
 
-import roymcclure.juegos.mus.cliente.logic.Game;
 import roymcclure.juegos.mus.common.logic.Language;
 
 public class UIParameters {

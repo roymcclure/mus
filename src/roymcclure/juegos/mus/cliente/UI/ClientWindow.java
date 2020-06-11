@@ -21,7 +21,6 @@ public class ClientWindow extends JFrame {
 
 	private static final String DEFAULT_PLAYER = "Player";
 	private static final String DEFAULT_IP = "127.0.0.1";
-	private static final String DEFAULT_PORT = "5678";
 
 	private static String player = DEFAULT_PLAYER;
 	private static String ip = DEFAULT_IP;
@@ -150,7 +149,7 @@ public class ClientWindow extends JFrame {
 		this.setJMenuBar(menuBar);
 
 		this.setResizable(false);
-		Dimension desktop = Toolkit.getDefaultToolkit().getScreenSize();
+		// Dimension desktop = Toolkit.getDefaultToolkit().getScreenSize();
 		int p = Integer.parseInt(windowPosition);
 		this.setLocation((p % 2 )* UIParameters.CANVAS_WIDTH,(p / 2)*UIParameters.CANVAS_HEIGHT/2);
 		//this.setLocation((desktop.width - WIDTH) / 2,(desktop.height - HEIGHT) / 2);

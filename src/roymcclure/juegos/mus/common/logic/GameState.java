@@ -5,7 +5,13 @@ import static roymcclure.juegos.mus.common.logic.Language.ServerGameState.*;
 
 import java.io.Serializable;
 
-
+/***
+ * 
+ * @author roy
+ *
+ * Reflects players state in terms of non-game related data.
+ *
+ */
 
 public class GameState implements Serializable {
 
@@ -13,60 +19,39 @@ public class GameState implements Serializable {
 	 * DATA THAT DOESNT CHANGE ALONG THE GAME
 	 */
 	private static final long serialVersionUID = 5539051360919540144L;
-	// domain specific data
-	private byte piedras_juego;
-	private byte juegos_vaca;
-	private byte vacas_partida;
-	public static byte base_piedras_juego;
-	public static byte base_juegos_vaca;
-	public static byte base_vacas_partida;
-
 	
 	//  This here is indexed by thread_id. Players can therefore know the thread_id of the other players, but 
 	//  it really isn't relevant info to them, unless (maybe) they have evil stuff in mind.
 	private String[] player_ids;
+	private boolean[] ready_for_next_round;
 	
 	// this is the SERVER game state.
 	private byte gameState;
 	
 	public GameState() {
 		player_ids = new String[MAX_CLIENTS];
+		ready_for_next_round = new boolean[MAX_CLIENTS];
+		for (int i = 0; i < MAX_CLIENTS; i++) {
+			ready_for_next_round[i] = false;
+		}
 		this.gameState = WAITING_ALL_PLAYERS_TO_CONNECT;
-		this.piedras_juego = base_piedras_juego;
-		this.juegos_vaca = base_juegos_vaca;
-		this.vacas_partida = base_vacas_partida;
 	}
 
-	public GameState(byte piedras_juego, byte juegos_vaca, byte vacas_partida, String[] player_ids, byte gameState) {
-		this.piedras_juego = piedras_juego;
-		this.juegos_vaca = juegos_vaca;
-		this.vacas_partida = vacas_partida;
+	public GameState(String[] player_ids, boolean[] ready_for_next_round, byte gameState) {
 		this.player_ids = player_ids;
-		this.gameState = gameState;
+		this.ready_for_next_round = new boolean[MAX_CLIENTS];
+		for (int i = 0; i < MAX_CLIENTS; i++) {
+			this.ready_for_next_round[i] = ready_for_next_round[i];
+		}
+		this.gameState = gameState;		
 	}
 
-	public byte getPiedras_juego() {
-		return piedras_juego;
+	public void setReadyForNextRound(byte idx_player, boolean value) {
+		this.ready_for_next_round[idx_player] = value;
 	}
-
-	public void setPiedras_juego(byte piedras_juego) {
-		this.piedras_juego = piedras_juego;
-	}
-
-	public byte getJuegos_vaca() {
-		return juegos_vaca;
-	}
-
-	public void setJuegos_vaca(byte juegos_vaca) {
-		this.juegos_vaca = juegos_vaca;
-	}
-
-	public byte getVacas_partida() {
-		return vacas_partida;
-	}
-
-	public void setVacas_partida(byte vacas_partida) {
-		this.vacas_partida = vacas_partida;
+	
+	public boolean isReadyForNextRound(byte idx_player) {
+		return ready_for_next_round[idx_player];
 	}
 
 	public byte getServerGameState() {
@@ -86,7 +71,7 @@ public class GameState implements Serializable {
 	}
 	
 	public GameState clone() {
-		return new GameState(piedras_juego, juegos_vaca, vacas_partida, player_ids, gameState);
+		return new GameState(player_ids, ready_for_next_round, gameState);
 	}
 
 	public void printContent() {
@@ -107,6 +92,22 @@ public class GameState implements Serializable {
 			System.out.println("SERVER STATE: FIN DE LA RONDA");
 			break;
 		}		
+	}
+
+	public boolean allReadyForNextRound() {
+		int count = 0;
+		for (int i = 0; i < MAX_CLIENTS; i++) {
+			if (isReadyForNextRound((byte) i))
+				count++;
+		}
+		return count == MAX_CLIENTS;
+	}
+
+	public void postRoundCheck() {
+		for (int i = 0; i < MAX_CLIENTS; i++) {
+			setReadyForNextRound((byte) i, false);
+		}
+		
 	}
 	
 }

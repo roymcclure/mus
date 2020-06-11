@@ -58,7 +58,7 @@ public class Game implements Runnable {
 		double nsPerTick = 1000000000 / amountOfTicks;
 		double delta = 0;
 		long timer = System.currentTimeMillis();
-		int frames = 0;
+		//int frames = 0;
 
 		while (running) {
 			long now = System.nanoTime();
@@ -70,7 +70,7 @@ public class Game implements Runnable {
 			}
 			if(running)
 				render();
-			frames++;
+			//frames++;
 
 			// System.out.println("frames:" + frames);
 			long then = System.nanoTime();
@@ -88,7 +88,7 @@ public class Game implements Runnable {
 			if (System.currentTimeMillis() - timer > 1000) {
 				timer += 1000;
 				//System.out.println("FPS:" + frames);
-				frames = 0;
+				// frames = 0;
 			}			
 		}
 

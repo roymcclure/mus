@@ -3,6 +3,7 @@ package roymcclure.juegos.mus.server.logic;
 import static roymcclure.juegos.mus.common.logic.Language.PlayerActions.*;
 import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.*;
 import static roymcclure.juegos.mus.common.logic.Language.GamePhase.*;
+import static roymcclure.juegos.mus.common.logic.Language.ServerGameState.*;
 
 
 import java.util.Random;
@@ -15,6 +16,7 @@ import roymcclure.juegos.mus.common.logic.Language.PlayerActions;
 import roymcclure.juegos.mus.common.logic.jobs.*;
 import roymcclure.juegos.mus.common.network.ClientMessage;
 import roymcclure.juegos.mus.common.network.ServerMessage;
+import roymcclure.juegos.mus.server.network.AtenderCliente;
 
 /*
  * This class performs (and controls) modifications to the model
@@ -37,17 +39,20 @@ public class ServerController implements Runnable{
 	private ConnectionJobsQueue[] connectionJobs;
 	private Object key;
 	private SrvMus server;
+	AtenderCliente[] hilos;
 
-	private int acks_ronda_no_jugada = 0;
-	private int acks_siguiente_ronda = 0;	
+	private boolean[] acks_ronda_no_jugada;
+	
 
-	public ServerController(ControllerJobsQueue controllerJobsQueue, ConnectionJobsQueue[] connectionJobs, GameState gameState, TableState tableState, SrvMus server, Object key) {
+	public ServerController(ControllerJobsQueue controllerJobsQueue, ConnectionJobsQueue[] connectionJobs, GameState gameState, TableState tableState, SrvMus server, Object key, AtenderCliente[] hilos) {
 		this.gameState = gameState;
 		this.tableState = tableState;
+		this.hilos = hilos;
 		_controllerJobsQueue = controllerJobsQueue;
 		this.connectionJobs = connectionJobs;
 		this.key = key;
 		this.server = server;
+		acks_ronda_no_jugada=new boolean[MAX_CLIENTS];
 	}
 
 	@Override
@@ -159,7 +164,7 @@ public class ServerController implements Runnable{
 			if (tableState.getGamePhase()==JUEGO || tableState.getGamePhase() == PARES)
 				return true;
 			break;
-		case HANDSHAKE:
+		case Language.ConnectionState.ALIVE:
 		case REQUEST_GAME_STATE: // a player can always request the game state
 		case REQUEST_SEAT: // a player can always request a seat.
 		case CLOSE_CONNECTION: // a player can always close the connection.
@@ -190,6 +195,8 @@ public class ServerController implements Runnable{
 			eligible = false;
 		if (clientMessage.getAction() == SIG_RONDA)
 			eligible = false;
+		if (clientMessage.getAction() == Language.ConnectionState.ALIVE)
+			eligible = false;
 		if (!eligible)
 			return false;
 		return true;
@@ -204,7 +211,7 @@ public class ServerController implements Runnable{
 		}		
 	}
 
-
+	// send what a player (playerID) did to another player (thread_id)
 	private void sendPlayerAction(ClientMessage cm, byte thread_id, String playerID) {
 		ServerMessage sm = ServerMessage.forgeBroadCastMessage(cm, playerID);
 		postServerConnectionJob(sm, thread_id);
@@ -220,7 +227,7 @@ public class ServerController implements Runnable{
 		player_seat_id = tableState.getSeatOf(playerID);		
 		switch (cm.getAction()) {
 
-		case REQUEST_GAME_STATE:
+		case PlayerActions.REQUEST_GAME_STATE:
 			updateOnRequestGameState(cm.getInfo(),thread_id);
 			break;
 
@@ -251,6 +258,12 @@ public class ServerController implements Runnable{
 			updateOnMus();
 			break;
 
+		case Language.ConnectionState.ALIVE:
+			// signal its AtenderCliente to set nReplies to 0
+			System.out.println("reseting nReplies in thread " + thread_id);
+			hilos[thread_id].resetNotReplied();
+			break;
+			
 		case PlayerActions.CORTO_MUS:
 			// we are in DESCARTE state
 			tableState.setGamePhase(GRANDE);
@@ -287,7 +300,7 @@ public class ServerController implements Runnable{
 			// this message is used so that when its not possible to play pares or juego,
 			// we wait for all players to communicate that
 		case PlayerActions.NO_SE_JUEGA_RONDA:
-			updateOnSkippingRound();
+			updateOnSkippingRound(thread_id);
 			break;
 
 		case PlayerActions.ORDAGO:
@@ -299,15 +312,15 @@ public class ServerController implements Runnable{
 			updateStateWithPass();
 			break;
 		case PlayerActions.SIG_RONDA:
-			updateStateWithSigRonda();
+			updateStateWithSigRonda(thread_id);
 			break;
 
 		default:
 			break;
 
 		}
-		// si después de actualizar hemos llegado a fin de ronda, 
-		// entonces esperamos a que el servidor me notifique 
+		// cada vez que me llega un mensaje de un cliente, si estoy en fin de ronda aviso a srvmus
+		// para qué? para que él compruebe y si todos los jugadores ya quieren seguir, srvmus avanza.
 		if (tableState.getGamePhase()==FIN_RONDA) {
 			// we notify the server so that it can advance to END_OF_ROUND			
 			synchronized(key) {
@@ -322,43 +335,38 @@ public class ServerController implements Runnable{
 			// then he waits there until all four sig_ronda are received
 		}
 		// tell other players what happened
-		if (cm.getAction()!=REQUEST_GAME_STATE && cm.getAction() != DESCARTAR && cm.getAction()!=SIG_RONDA) {
+		if (cm.getAction()!=REQUEST_GAME_STATE && cm.getAction() != DESCARTAR && cm.getAction()!=SIG_RONDA && cm.getAction()!=Language.ConnectionState.ALIVE) {
 			System.out.println("[CONTROLLER] BROADCASTING GAME STATE");
 			broadCastGameState();
 		}
 	}
 
-	private void updateStateWithSigRonda() {
-		acks_siguiente_ronda++;
-		if (acks_siguiente_ronda == MAX_CLIENTS) {
-
-			System.out.println("[CONTROLLER] RECIBIDOS TODOS LOS SIG_RONDA, LIMPIANDO ESTADO");
-			tableState.pasarASiguienteLance();
-			// jugadores hablado no hace falta, se hace en pasarAsiguienteLance
-
-			acks_siguiente_ronda = 0;
-			// devolver todas las cartas a la baraja y barajar
-			tableState.getBaraja().vaciar();
-			tableState.getBarajaDescartes().vaciar();
-			tableState.getBaraja().rellenar();
-			tableState.getBaraja().barajar();
-			// poner piedras envidadas en cada ronda a 0
-			byte zero = 0;
-			tableState.setMano_seat_id(TableState.nextTableSeatId(tableState.getMano_seat_id()));
-			tableState.setJugador_debe_hablar(tableState.getMano_seat_id());
-			tableState.setPiedras_acumuladas_en_apuesta(zero);
-			for (byte i = GRANDE; i<=JUEGO;i++)
-				tableState.setPiedras_envidadas(i, zero);
-			// repartir
-			tableState.repartir();
+	private void updateStateWithSigRonda(byte thread_id) {
+        // 
+		String playerID = gameState.getPlayerID(thread_id);
+		byte seat_id = tableState.getSeatOf(playerID);
+		gameState.setReadyForNextRound(seat_id, true);
+		if (gameState.allReadyForNextRound()) {
 
 			synchronized(key) {
-				key.notify();
+				try {
+					// tell server all clients want to move on
+					key.notify();
+					// wait for server to tell me it switched states					
+					while(gameState.getServerGameState()==END_OF_ROUND) {
+						key.wait();
+					}
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			}
-
+			tableState.resetForNewround();	
+			tableState.postRoundCheck();	
+			gameState.postRoundCheck();
 			broadCastGameState();
-
-
+		} else {
+			sendGameState(thread_id);
 		}		
 	}
 
@@ -370,12 +378,27 @@ public class ServerController implements Runnable{
 	 */
 
 
-	private void updateOnSkippingRound() {
+	private boolean allAcks() {
+		byte acks = 0;
+		for (int i = 0; i < MAX_CLIENTS; i++) {
+			if(acks_ronda_no_jugada[i])
+				acks++;
+		}
+		return acks == MAX_CLIENTS;
+	}
+	
+	private void clearAcks() {
+		for (int i = 0; i < MAX_CLIENTS; i++) {
+			acks_ronda_no_jugada[i] = false;
+		}		
+	}
+	
+	private void updateOnSkippingRound(byte thread_id) {
 		System.out.println("LLEGO UN MSG NO SE JUEGA RONDA");
-		acks_ronda_no_jugada++;
-		if (acks_ronda_no_jugada == MAX_CLIENTS) {
+		acks_ronda_no_jugada[thread_id] = true;
+		if (allAcks()) {
 			System.out.println("LLEGARON LOS 4, PASAMOS A SIGUIENTE LANCE");				
-			acks_ronda_no_jugada = 0;
+			clearAcks();
 			tableState.pasarASiguienteLance();
 		}
 
@@ -470,7 +493,7 @@ public class ServerController implements Runnable{
 		ps.setCommitedToDiscard(true);
 		ps.unmarkAll();
 		for (byte i = 0; i < CARDS_PER_HAND; i++) {
-			if (bitSet(i,descartes)) {					
+			if (ByteMessage.isBitSet(i,descartes)) {					
 				ps.markForReplacement(i);	
 			}				
 		}
@@ -634,18 +657,8 @@ public class ServerController implements Runnable{
 		default:
 			break;
 		}
-
-
-
-
-
 	}
 
-	// TODO: in the controller? really?
-	private boolean bitSet(byte bit_index, byte value) {
-		// if and between bit_index 
-		return (value & (byte)Math.pow(2, bit_index)) != 0;
-	}
 
 	//notify All Players
 	public void broadCastGameState() {

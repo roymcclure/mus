@@ -9,8 +9,7 @@ import java.util.LinkedList;
 import roymcclure.juegos.mus.cliente.UI.*;
 import roymcclure.juegos.mus.common.logic.Language.GamePhase;
 import roymcclure.juegos.mus.common.logic.Language.PlayerActions;
-import roymcclure.juegos.mus.common.logic.Language;
-import roymcclure.juegos.mus.common.logic.TableState;
+import roymcclure.juegos.mus.common.logic.ByteMessage;
 import roymcclure.juegos.mus.common.logic.cards.Carta;
 import roymcclure.juegos.mus.common.network.ClientMessage;
 
@@ -282,7 +281,7 @@ public class Handler {
 				addButtons(labels_mus);				
 			}	else {
 				// show "waiting for [player in turn] to play"...
-				addTextGameObject(new Point(UIParameters.CANVAS_WIDTH/2,  UIParameters.CANVAS_HEIGHT/2),"Waiting for another player to talk...");
+				addTextGameObject(new Point(UIParameters.CANVAS_WIDTH/2,  UIParameters.CANVAS_HEIGHT/2),"Esperando que hable otro jugador...");
 			}	
 			break;
 		case GamePhase.DESCARTE:
@@ -304,11 +303,16 @@ public class Handler {
 
 	private void updateButtonsViewEndOfRound() {
 
-		// simplemente añadir un boton de siguiente ronda
-		// o empezar juego nuevo?
-		String[] labels_ronda = {"SIGUIENTE RONDA"};
-		addButtons(labels_ronda);
-
+		// if partida terminada, show button JUGAR OTRA PARTIDA.
+		
+		if (getGameState().isReadyForNextRound(my_seat_id())) {
+			String[] labels_ronda = {"REPETIR CONTEO"};
+			addTextGameObject(new Point(UIParameters.CANVAS_WIDTH/2,  UIParameters.CANVAS_HEIGHT/2), "Esperando al resto de jugadores...");
+			addButtons(labels_ronda);
+		} else {
+			String[] labels_ronda = {"SIGUIENTE RONDA","REPETIR CONTEO"};
+			addButtons(labels_ronda);			
+		}
 	}	
 
 
@@ -401,7 +405,7 @@ public class Handler {
 		byte sender_relative_seat_id = UIParameters.relativePosition(my_seat_id(), sender_absolute_seat_id);
 		String msg = "";
 		String[] playerActionsText = {"PASO","ENVIDO","ACEPTO","ORDAGO","ME DOY MUS","UNA MIERDA MUS!",	"ME TIRO DE ",
-				"", "", "", "", "", "", "TENGO PARES","TENGO JUEGO","","","","","","CIERRO CONEXION","DESCARTA UNA COMO POCO"
+				"", "", "", "", "", "", "TENGO PARES","TENGO JUEGO","","","","","","CIERRO CONEXION","DESCARTA AL MENOS UNA"
 		};
 		msg = playerActionsText[broadCastMessage.getAction()];
 		if (broadCastMessage.getAction()==PlayerActions.HABLO_PARES ) {
@@ -416,9 +420,17 @@ public class Handler {
 		}			
 		// TODO: en descarte, lo que llega es qué cartas en forma de máscara de bits, no la cantidad
 		// eso habrá que deducirlo con una operación sobre bits (bitSet)
-		if (broadCastMessage.getAction()==ENVITE || broadCastMessage.getAction() == DESCARTE)
+		if (broadCastMessage.getAction()==ENVITE)
 			msg+=broadCastMessage.getQuantity();
-		if (broadCastMessage.getAction()==ENVITE && ClientGameState.table().getPiedras_acumuladas_en_apuesta() > 0)
+		else if (broadCastMessage.getAction() == DESCARTAR) {
+			byte descartes = 0;
+			for (byte i = 0; i < CARDS_PER_HAND; i++) {
+				if (ByteMessage.isBitSet(i,broadCastMessage.getQuantity())) {					
+					descartes++;
+				}				
+			}
+			msg+=descartes;
+		} else 	if (broadCastMessage.getAction()==ENVITE && ClientGameState.table().getPiedras_acumuladas_en_apuesta() > 0)
 			msg+=" MAS!";
 
 		addSpeechBubble(sender_relative_seat_id, msg, DEFAULT_SPEECHBUBBLE_LIFETIME);
@@ -428,7 +440,7 @@ public class Handler {
 	public void addSpeechBubble(byte seat_position, String msg, int duracion) {
 		int x = UIParameters.CANVAS_WIDTH / 2 - UIParameters.BOCADILLO_ANCHO / 2;
 		int y = UIParameters.CANVAS_HEIGHT / 2 - UIParameters.BOCADILLO_ALTO / 2;
-		BocadilloView bv = new BocadilloView(x,y,ID.Bocadillo, duracion,seat_position,msg);
+		BocadilloView bv = new BocadilloView(x,y,ID.Bocadillo, 500,seat_position,msg);
 		addTemporaryObject(bv);
 	}
 

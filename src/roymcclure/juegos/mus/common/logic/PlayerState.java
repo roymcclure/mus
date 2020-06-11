@@ -5,12 +5,11 @@ import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.*;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 
 import roymcclure.juegos.mus.common.logic.Language.TipoPares;
 import roymcclure.juegos.mus.common.logic.cards.Baraja;
 import roymcclure.juegos.mus.common.logic.cards.Carta;
-import roymcclure.juegos.mus.common.logic.cards.Jugadas;
+
 
 public class PlayerState implements Serializable {
 

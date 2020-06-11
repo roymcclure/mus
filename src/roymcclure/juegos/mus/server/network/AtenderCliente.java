@@ -7,6 +7,7 @@ import static roymcclure.juegos.mus.common.logic.Language.PlayerActions.CLOSE_CO
 import java.io.IOException;
 import java.net.Socket;
 
+import roymcclure.juegos.mus.common.logic.Language;
 import roymcclure.juegos.mus.common.logic.jobs.*;
 import roymcclure.juegos.mus.common.network.*;
 import roymcclure.juegos.mus.server.logic.SrvMus;
@@ -19,25 +20,26 @@ import roymcclure.juegos.mus.server.logic.SrvMus;
  *  
  */
 public class AtenderCliente extends Thread {
-	
+
 	private Socket socket;
 	private Thread readThread;
 	private Thread writeThread;
 	private ConnectionJobsQueue connectionJobsQueue;
 	private ControllerJobsQueue controllerJobsQueue;
-	
+
 	byte thread_id=-1;
 	private boolean connected = false;
+	byte notReplied = 0;
 
 	SrvMus server;
 
-	
+
 	public AtenderCliente(Socket s, byte thread_id, SrvMus server, ControllerJobsQueue controllerJobsQueue, ConnectionJobsQueue connectionJobsQueue) {
 		this.socket = s;
 		this.thread_id = thread_id;		
 		this.connectionJobsQueue = connectionJobsQueue;
 		this.controllerJobsQueue = controllerJobsQueue;
-		
+
 		ConnectionThread wct = new ConnectionThread(WRITE, SERVER, this.connectionJobsQueue, this.controllerJobsQueue, thread_id);
 		//System.out.println("Server created write connection thread");		
 		wct.setSocket(this.socket);
@@ -54,13 +56,34 @@ public class AtenderCliente extends Thread {
 		connected = true;
 		this.server = server;
 	}
-	
+
 	public void run() {
-		
+
 		readThread.start();
 		writeThread.start();
-		
+
 		try {
+			// cada 10 segundos, lanzar un keepalive
+			// si el cliente no responde tres veces, se le da por desconectado
+			
+			while(connected) {
+				synchronized(connectionJobsQueue) {
+					ServerMessage sm = new ServerMessage();
+					sm.setReply(Language.ConnectionState.ALIVE);
+					connectionJobsQueue.postConnectionJob(new ConnectionJob(sm));
+					connectionJobsQueue.notify();					
+				}
+				Thread.sleep(10000);
+				notReplied++;				
+				if (notReplied>=3) {
+					readThread.interrupt();
+					writeThread.interrupt();
+					connected= false;
+				}
+				
+			}
+			
+
 			//System.out.println("[AtenderCliente] de thread_id: " + thread_id + " se queda esperando a que finalicen sus threads de lectura y escritura...");
 			readThread.join();
 			System.out.println("AtenderCliente: readThread joined.");
@@ -90,7 +113,7 @@ public class AtenderCliente extends Thread {
 	public boolean isConnected() {
 		return connected;
 	}
-	
+
 	public void disconnect() {
 		try {
 			readThread.interrupt();
@@ -102,6 +125,10 @@ public class AtenderCliente extends Thread {
 			e.printStackTrace();
 		}
 
+	}
+
+	public synchronized void resetNotReplied() {
+		notReplied = 0;
 	}
 
 }

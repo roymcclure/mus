@@ -2,7 +2,6 @@ package roymcclure.juegos.mus.server.UI;
 
 import javax.swing.SwingUtilities;
 
-import roymcclure.juegos.mus.common.logic.GameState;
 import roymcclure.juegos.mus.common.logic.PlayerState;
 import roymcclure.juegos.mus.common.logic.cards.Carta;
 import roymcclure.juegos.mus.common.logic.cards.Jugadas;
@@ -51,15 +50,15 @@ public class Principal {
 						}
 						if (line.contains("piedras_to_juego")) {
 							line = line.substring(eq_indx).trim();
-							GameState.base_piedras_juego = Byte.parseByte(line);							
+							//GameState.base_piedras_juego = Byte.parseByte(line);							
 						}
 						if (line.contains("juegos_to_vaca")) {
 							line = line.substring(eq_indx).trim();
-							GameState.base_juegos_vaca = Byte.parseByte(line);							
+							//GameState.base_juegos_vaca = Byte.parseByte(line);							
 						}
 						if (line.contains("vacas_to_partida")) {
 							line = line.substring(eq_indx).trim();
-							GameState.base_vacas_partida = Byte.parseByte(line);
+							//GameState.base_vacas_partida = Byte.parseByte(line);
 						}						
 					}					
 					ServerWindow serverWindow = new ServerWindow();

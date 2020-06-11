@@ -5,6 +5,7 @@ import roymcclure.juegos.mus.cliente.UI.UIParameters;
 import roymcclure.juegos.mus.cliente.logic.jobs.*;
 
 import static roymcclure.juegos.mus.common.logic.Language.PlayerActions.*;
+
 import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.*;
 import static roymcclure.juegos.mus.common.logic.Language.ButtonIndices.*;
 import static roymcclure.juegos.mus.common.logic.Language.MouseInputType.*;
@@ -38,6 +39,7 @@ public class ClientController extends Thread {
 	private static Handler _handler;
 	private static ControllerJobsQueue _controllerJobs;
 	private static ConnectionJobsQueue _connectionJobs;
+	private boolean endOfRoundBubblesShown = false;
 
 	public ClientController(Handler handler, ControllerJobsQueue contrJobs, ConnectionJobsQueue connJobs) {
 		_handler = handler;
@@ -50,12 +52,12 @@ public class ClientController extends Thread {
 
 	@Override
 	public void run() {
-		System.out.println("CALLED start() in ClientController");
+		//System.out.println("CALLED start() in ClientController");
 		Job job;
-		System.out.println("CLIENT CONTROLLER RUNNING:");
+		//System.out.println("CLIENT CONTROLLER RUNNING:");
 		while(Game.running) {
 			job = getJob();
-			System.out.println("[CLIENT CONTROLLER] Got a job. Processing...");
+			//System.out.println("[CLIENT CONTROLLER] Got a job. Processing...");
 			processJob(job);					
 
 		}		
@@ -64,12 +66,23 @@ public class ClientController extends Thread {
 	// TODO: processing a job is coupled to updating the view
 	private void processJob(Job job) {
 		// game state is modified by clickReceived and message received
+		boolean updateView = true;
 		if (job instanceof MessageJob) {
-			System.out.println("[CLIENT CONTROLLER] job is instance of MessageJob. ServerMessage contains:");
+			//System.out.println("[CLIENT CONTROLLER] job is instance of MessageJob. ServerMessage contains:");
 			ServerMessage sm = ((MessageJob) job).getServerMessage();
-			sm.printContent();
-			System.out.println("[CLIENT CONTROLLER] processing in MessageReceived:");
-			messageReceived(sm);
+			if (sm.getReply()==Language.ConnectionState.ALIVE) {
+				updateView=false;
+				//sm.printContent();
+				System.out.println("[CLIENT CONTROLLER] RECEIVED A KEEP ALIVE MSG");
+				synchronized(_connectionJobs) {
+					ClientMessage cm = new ClientMessage(Language.ConnectionState.ALIVE, (byte) 0, "");
+					ConnectionJob cj2 = new ConnectionJob(cm);
+					_connectionJobs.postConnectionJob(cj2);
+					_connectionJobs.notify();
+				}
+			} else {
+				messageReceived(sm);
+			}
 		}
 		else if (job instanceof InputReceivedJob) {
 			InputReceivedJob j = (InputReceivedJob) job;
@@ -92,57 +105,101 @@ public class ClientController extends Thread {
 				break;
 			}
 
-		} 
-		System.out.println("Calling updateView()");
-		synchronized(_handler) {
-			_handler.updateView();
 		}
-	}
-
-
-
-	/*
-	private void mouseMoved(int x, int y) {
-		// we know for a fact that mouse entered or exited a card, so lets update state
-	}
-	 */
-
-	private void messageReceived(ServerMessage sm) {
-		//System.out.println("[Controller] calling messageReceived.");
-		// si es un mensaje de broadcast
-		System.out.println(System.nanoTime() + " message received from server. Printing:");
-		sm.printContent();
 		synchronized(_handler) {
-			if (sm.isBroadCastMsg()) {
-				//System.out.println("Received broadcast message!!!");
-				_handler.broadcastMsgToView(sm.getBroadCastMessage());
-			} else {
-				// update client game state
-				ClientGameState.updateWith(sm);
-				if (sm.getTableState().getGamePhase()==PARES && ClientGameState.getPares_hablados()==0) {
-					showSpeechBubblesForSkippableRounds(HABLO_PARES);
-					if (!table().seJueganPares())
-						postConnectionJob(NO_SE_JUEGA_RONDA, (byte)0, "");				
-				}
-				else if (sm.getTableState().getGamePhase()==JUEGO && ClientGameState.getJuego_hablados()==0) {
-					showSpeechBubblesForSkippableRounds(HABLO_JUEGO);
-					if (!table().seJuegaJuego())
-						postConnectionJob(NO_SE_JUEGA_RONDA, (byte)0, "");
-				}
-				else if(sm.getTableState().getGamePhase()==FIN_RONDA) {
-					ClientGameState.setPares_hablados((byte)0);
-					ClientGameState.setJuego_hablados((byte)0);				
-					showSpeechBubblesForEndOfRound(ClientGameState.table().isOrdago_lanzado());
-				}
-
+			if (updateView) {
+				System.out.println("Calling updateView()");				
+				_handler.updateView();
 			}
 		}
 	}
 
+
+	private static Job getJob() {
+		Job job;
+		synchronized(_controllerJobs) {
+			if (_controllerJobs.isEmpty()) {
+				try {
+					_controllerJobs.wait();
+				} catch (InterruptedException e) {
+
+					e.printStackTrace();
+				}
+			}
+			job = _controllerJobs.getControllerJob();
+			_controllerJobs.deleteFirstJob();
+		}			
+
+		return job;
+	}
+
+	public static void postInitialRequest() {
+		postConnectionJob(REQUEST_GAME_STATE, (byte)0,  ClientGameState.getPlayerID());
+	}
+
+	private static void postConnectionJob(byte playerAction, byte playerQty, String info) {
+		ClientMessage cm = null;
+		cm = new ClientMessage(playerAction, playerQty, info);
+		ConnectionJob job;
+		job = new ConnectionJob(cm);
+		synchronized(_connectionJobs) {
+			//System.out.println("ClientController posted a ConnectionJob to connection jobs queue");
+			_connectionJobs.postConnectionJob(job);
+			_connectionJobs.notify();
+		}
+	}
+
+
+	// determines how a received message is handled 
+	private void messageReceived(ServerMessage sm) {
+		//System.out.println("[Controller] calling messageReceived.");
+		// si es un mensaje de broadcast
+		//System.out.println(System.nanoTime() + " message received from server. Printing:");
+		//sm.printContent();
+		synchronized(_handler) {
+			if (sm.isBroadCastMsg()) {
+			//	System.out.println("Received broadcast message!!!");
+				_handler.broadcastMsgToView(sm.getBroadCastMessage());
+			} else if (sm.getReply()==Language.ConnectionState.ALIVE) {
+				// server asks if im alive, need to reply with YES im alive
+				//System.out.println("getreply es keep alive");
+				postConnectionJob(Language.ConnectionState.ALIVE, (byte)0, "");
+			} else {
+				updateClientState(sm);
+			}
+		}
+	}
+
+	// update client game state
+	private void updateClientState(ServerMessage sm) {
+		ClientGameState.updateWith(sm);
+		if (sm.getTableState().getGamePhase()==GamePhase.MUS)
+			endOfRoundBubblesShown = false;
+		if (sm.getTableState().getGamePhase()==PARES && ClientGameState.getPares_hablados()==0) {
+			showSpeechBubblesForSkippableRounds(HABLO_PARES);
+			if (!table().seJueganPares())
+				postConnectionJob(NO_SE_JUEGA_RONDA, (byte)0, "");				
+		}
+		else if (sm.getTableState().getGamePhase()==JUEGO && ClientGameState.getJuego_hablados()==0) {
+			showSpeechBubblesForSkippableRounds(HABLO_JUEGO);
+			if (!table().seJuegaJuego())
+				postConnectionJob(NO_SE_JUEGA_RONDA, (byte)0, "");
+		}
+		else if(sm.getTableState().getGamePhase()==FIN_RONDA) {
+			ClientGameState.setPares_hablados((byte)0);
+			ClientGameState.setJuego_hablados((byte)0);				
+			if (!endOfRoundBubblesShown) {
+				showSpeechBubblesForEndOfRound();
+				endOfRoundBubblesShown  = true;						
+			}
+			
+		}		
+	}
+	
 	// WIP: si unos tienen pares (o juego) y los otros no
-	private void showSpeechBubblesForEndOfRound(boolean ordago) {
+	private void showSpeechBubblesForEndOfRound() {
 		// si habia un ordago, simplemente se dice quien lo ganó
-		if (ordago) {
+		if (ClientGameState.table().isOrdago_lanzado()) {
 			byte absolute_seat_id = table().getGanador(table().getPreviousLance());
 			byte winner_seat_id = UIParameters.relativePosition(my_seat_id(), absolute_seat_id);
 			_handler.addSpeechBubble(winner_seat_id, "GANO EL ORDAGO A " + Language.StringLiterals.LANCES[table().getPreviousLance()], 3000);
@@ -150,55 +207,75 @@ public class ClientController extends Thread {
 			for (byte i = GRANDE; i <= JUEGO; i++) {
 				// para cada ronda en orden
 				// si la ronda se podía jugar
-				if (table().rondaWasPlayable(i)) {
-					System.out.println("Lance " + Language.StringLiterals.LANCES[i] + " was playable!");
-					// si quedó en paso, se le da al ganador
-					byte winner_seat_id = UIParameters.relativePosition(my_seat_id(), table().getGanador(i));
-					System.out.println("Ganador de lance " + Language.StringLiterals.LANCES[i] + " es " + table().getClient(winner_seat_id).getName());					
-					if (table().lanceQuedoEnPaso(i)) {
-						System.out.println("lance " +Language.StringLiterals.LANCES[i] + " quedo en paso");
-						_handler.addSpeechBubble(winner_seat_id, "GANO " + Language.StringLiterals.LANCES[i] + " EN PASO",  2000);					
-					} else if (table().piedrasApostadasEnRonda(i)>0) {
-						System.out.println("lance " + Language.StringLiterals.LANCES[i] + " no quedo en paso");						
-						_handler.addSpeechBubble(winner_seat_id, "GANO " + table().piedrasApostadasEnRonda(i) + " DE ENVITE A " + Language.StringLiterals.LANCES[i],  2000);					
-					}
-					// si estamos a pares o juego, el compañero del ganador también se apunta sus pares y/o juego en caso de que tenga
-					if (i==PARES) {
-						byte pareja_winner = table().opuesto(winner_seat_id);
-						if (Jugadas.valorEnPiedrasMano(PARES, table().getClient(pareja_winner)) >0) {
-							_handler.addSpeechBubble(winner_seat_id, "ME LLEVO " + Jugadas.valorEnPiedrasMano(PARES, table().getClient(pareja_winner)) + " DE PARES",  2000);							
-						}
-					}
-					else if (i== JUEGO) {
-						byte pareja_winner = table().opuesto(winner_seat_id);
-						if (Jugadas.valorEnPiedrasMano(JUEGO, table().getClient(pareja_winner)) >0) {
-							_handler.addSpeechBubble(winner_seat_id, "ME LLEVO " + Jugadas.valorEnPiedrasMano(JUEGO, table().getClient(pareja_winner)) + " DE JUEGO",  2000);							
-						}						
-					}
+				if (table().roundWasPlayable(i)) {
+					showSpeechBubblesForPlayableRonda(i);
 				} else {
-					System.out.println("lance " + Language.StringLiterals.LANCES[i] + " was not playable :(");
-					switch(i) {
-					case PARES:
-						for (byte j = 0; j < MAX_CLIENTS; j++) {
-							if (table().tienePares(j))
-								_handler.addSpeechBubble(UIParameters.relativePosition(my_seat_id(), j), "ME LLEVO " + Jugadas.valorEnPiedrasMano(PARES,table().getClient(j)) + " de " + Language.StringLiterals.LANCES[i],  2000);
-						}
-						break;
-					case JUEGO:
-						for (byte j = 0; j < MAX_CLIENTS; j++) {
-							if (table().tieneJuego(j))
-								_handler.addSpeechBubble(UIParameters.relativePosition(my_seat_id(), j), "ME LLEVO " + Jugadas.valorEnPiedrasMano(JUEGO, table().getClient(j)) + " de " + Language.StringLiterals.LANCES[i],  2000);
-						}
-						break;
-					}
+					showSpeechBubblesForNonPlayableRonda(i);
 				}
 			}
 		}
+		// show speech bubble if there is a winner
+		if (table().getPiedras_norte_sur() >= table().getPiedras_por_juego()) {
+			_handler.addSpeechBubble(UIParameters.relativePosition(my_seat_id(),(byte) 0), "GANAMOS ESTE JUEGO!",  2000);
+		} else if (table().getPiedras_oeste_este() >= table().getPiedras_por_juego()) {
+			_handler.addSpeechBubble(UIParameters.relativePosition(my_seat_id(),(byte) 1), "GANAMOS ESTE JUEGO!",  2000);	
+		}
+		
+		if (table().getJuegos_norte_sur() >= table().getJuegos_por_vaca()) {
+			_handler.addSpeechBubble(UIParameters.relativePosition(my_seat_id(),(byte) 0), "NOS LLEVAMOS ESTA VACA!",  2000);
+		} else if (table().getJuegos_oeste_este() >= table().getJuegos_por_vaca()) {
+			_handler.addSpeechBubble(UIParameters.relativePosition(my_seat_id(),(byte) 1), "NOS LLEVAMOS ESTA VACA!",  2000);
+		}
+		
+		if (table().getVacas_norte_sur() >= table().getVacas_por_partida()) {
+			_handler.addSpeechBubble(UIParameters.relativePosition(my_seat_id(),(byte) 0), "GANAMOS LA PARTIDA!",  2000);					
+		} else if (table().getVacas_oeste_este() >= table().getVacas_por_partida()) {
+			_handler.addSpeechBubble(UIParameters.relativePosition(my_seat_id(),(byte) 1), "GANAMOS LA PARTIDA!",  2000);					
+		}	
+
+	}
+	
+	private void showSpeechBubblesForNonPlayableRonda(byte i) {
+		//System.out.println("lance " + Language.StringLiterals.LANCES[i] + " was not playable :(");
+		switch(i) {
+		case PARES:
+			for (byte j = 0; j < MAX_CLIENTS; j++) {
+				if (table().tienePares(j))
+					_handler.addSpeechBubble(UIParameters.relativePosition(my_seat_id(),j), "ME LLEVO " + Jugadas.valorEnPiedrasMano(PARES,table().getClient(j)) + " de " + Language.StringLiterals.LANCES[i],  2000);
+			}
+			break;
+		case JUEGO:
+			for (byte j = 0; j < MAX_CLIENTS; j++) {
+				if (table().tieneJuego(j))
+					_handler.addSpeechBubble(UIParameters.relativePosition(my_seat_id(),j), "ME LLEVO " + Jugadas.valorEnPiedrasMano(JUEGO, table().getClient(j)) + " de " + Language.StringLiterals.LANCES[i],  2000);
+			}
+			break;
+		}		
+	}
+
+	private void showSpeechBubblesForPlayableRonda(byte i) {
+		//System.out.println("Lance " + Language.StringLiterals.LANCES[i] + " was playable!");
+		// si quedó en paso, se le da al ganador
+		byte winner_seat_id = UIParameters.relativePosition(my_seat_id(), table().getGanador(i));
+		if (table().lanceQuedoEnPaso(i)) {
+			_handler.addSpeechBubble(winner_seat_id, "GANO " + Language.StringLiterals.LANCES[i] + " EN PASO",  2000);					
+		} else if (table().piedrasApostadasEnRonda(i)>0) {
+			//System.out.println("lance " + Language.StringLiterals.LANCES[i] + " no quedo en paso");						
+			_handler.addSpeechBubble(winner_seat_id, "GANO " + table().piedrasApostadasEnRonda(i) + " DE ENVITE A " + Language.StringLiterals.LANCES[i],  2000);					
+		}
+		// si estamos a pares o juego, el compañero del ganador también se apunta sus pares y/o juego en caso de que tenga
+		if (i==PARES || i==JUEGO ) {
+			_handler.addSpeechBubble(winner_seat_id, "ME LLEVO " + Jugadas.valorEnPiedrasMano(PARES, table().getClient(table().getGanador(i))) + " DE " + Language.StringLiterals.LANCES[i],  2000);
+			byte pareja_winner = table().opuesto(table().getGanador(i));
+			if (Jugadas.valorEnPiedrasMano(i, table().getClient(pareja_winner)) >0) {
+				_handler.addSpeechBubble(UIParameters.relativePosition(my_seat_id(),pareja_winner), "ME LLEVO " + Jugadas.valorEnPiedrasMano(PARES, table().getClient(pareja_winner)) + " DE " + Language.StringLiterals.LANCES[i],  2000);							
+			}
+		}	
 	}
 
 	private void showSpeechBubblesForSkippableRounds(byte que_hablo) {
 		// first time we enter into PARES, we each have to talk. first to talk is relativePosition(mano)
-		System.out.println("my seat id es " + my_seat_id() + " y el de la mano es " + table().getMano_seat_id());
+		//System.out.println("my seat id es " + my_seat_id() + " y el de la mano es " + table().getMano_seat_id());
 		byte talking_id = table().getMano_seat_id();
 		String playerID = table().getClient(talking_id).getID();
 		for (int i = 0; i < MAX_CLIENTS; i++) {
@@ -334,11 +411,22 @@ public class ClientController extends Thread {
 			break;
 
 		case GamePhase.FIN_RONDA:
-			byte clicked_button = UIParameters.getMenuClickedButton(1,x,y);
-			System.out.println("Value of clicked button "+ clicked_button);
-			if (clicked_button == BUTTON_SIG_RONDA) {
-				postConnectionJob(SIG_RONDA, (byte)0, "");
+			
+			if (getGameState().isReadyForNextRound(my_seat_id())) {
+				byte clicked_button = UIParameters.getMenuClickedButton(1,x,y);				
+				if (clicked_button == 0) {
+					showSpeechBubblesForEndOfRound();
+				}
+			} else {
+				byte clicked_button = UIParameters.getMenuClickedButton(2,x,y);
+				if (clicked_button == BUTTON_SIG_RONDA) {
+					postConnectionJob(SIG_RONDA, (byte)0, "");
+				}
+				if (clicked_button == BUTTON_REPETIR_CONTEO) {
+					showSpeechBubblesForEndOfRound();
+				}
 			}
+			
 			break;
 
 		}	
@@ -352,40 +440,6 @@ public class ClientController extends Thread {
 			// we request that seat from the server
 			postConnectionJob(REQUEST_SEAT, seat, "");		}
 
-	}
-
-	private static Job getJob() {
-		Job job;
-		synchronized(_controllerJobs) {
-			if (_controllerJobs.isEmpty()) {
-				try {
-					_controllerJobs.wait();
-				} catch (InterruptedException e) {
-
-					e.printStackTrace();
-				}
-			}
-			job = _controllerJobs.getControllerJob();
-			_controllerJobs.deleteFirstJob();
-		}			
-
-		return job;
-	}
-
-	public static void postInitialRequest() {
-		postConnectionJob(REQUEST_GAME_STATE, (byte)0,  ClientGameState.getPlayerID());
-	}
-
-	private static void postConnectionJob(byte playerAction, byte playerQty, String info) {
-		ClientMessage cm = null;
-		cm = new ClientMessage(playerAction, playerQty, info);
-		ConnectionJob job;
-		job = new ConnectionJob(cm);
-		synchronized(_connectionJobs) {
-			//System.out.println("ClientController posted a ConnectionJob to connection jobs queue");
-			_connectionJobs.postConnectionJob(job);
-			_connectionJobs.notify();
-		}
 	}
 
 }

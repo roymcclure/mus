@@ -54,6 +54,8 @@ public class SrvMus extends Thread {
 
 	private ArrayList<TableState> history;
 
+	private boolean historyAdded = false;
+
 	public SrvMus (ServerWindow serverWindow) {
 		this.serverWindow = serverWindow;
 		gameState = new GameState();
@@ -64,11 +66,12 @@ public class SrvMus extends Thread {
 			connectionJobs[i] = new ConnectionJobsQueue();
 		}
 		semaphore = new Object();
-		this.serverController = new ServerController(controllerJobsQueue, connectionJobs, gameState, tableState, this, semaphore);	
+		resetThreads();		
+		this.serverController = new ServerController(controllerJobsQueue, connectionJobs, gameState, tableState, this, semaphore, hilos);	
 		Thread controllerThread = new Thread(serverController);
 		controllerThread.setName("Thread-ServerController");
 		controllerThread.start();
-		resetThreads();
+
 
 		history = new ArrayList<TableState>();
 
@@ -212,7 +215,7 @@ public class SrvMus extends Thread {
 	private void dealing() {
 		while(tableState.getGamePhase()!=GRANDE) {
 			try {
-				log("WAITING FOR THE CONTROLLER TO TELL ME THAT DEALING WAS FINISHED");
+				log("WAITING FOR END OF DEALING");
 				synchronized(semaphore) {
 					semaphore.wait();
 				}
@@ -277,21 +280,29 @@ public class SrvMus extends Thread {
 	private void endOfRound() {
 		//make a copy of the tablestate add it to history
 		System.out.println("[SRVMUS] endOfRound(): adding history...");
-		history.add(new TableState(tableState));
-		log("END OF ROUND. Next round: " + tableState.getId_ronda());
+		if (!historyAdded) {
+			log("END OF ROUND. Next round: " + tableState.getId_ronda());
+			history.add(new TableState(tableState));
+			historyAdded  = true;
+		}
 		// wait for the controller to tell me all clients said lets go to next round
 		try {
-			synchronized(semaphore) {
-				semaphore.wait();
+
+			while(!gameState.allReadyForNextRound()) {
+				synchronized(semaphore) {
+					semaphore.wait();
+				}				
+			}
+			if (tableState.getVacas_norte_sur()==tableState.getVacas_por_partida() || tableState.getVacas_oeste_este()==tableState.getVacas_por_partida()) {
+				gameState.setGameState(ServerGameState.GAME_FINISHED);
+			} else {
+				gameState.setGameState(ServerGameState.DEALING);				
+			}
+			synchronized (semaphore) {
+				semaphore.notify();
 			}
 		} catch (InterruptedException e) {
-
 			e.printStackTrace();
-		}
-		if (tableState.getVacas_norte_sur()==gameState.getVacas_partida() || tableState.getVacas_oeste_este()==gameState.getVacas_partida()) {
-			gameState.setGameState(ServerGameState.GAME_FINISHED);
-		} else {
-			gameState.setGameState(ServerGameState.DEALING);
 		}
 
 	}
@@ -420,13 +431,11 @@ public class SrvMus extends Thread {
 		}
 	}
 
-
-
 	private void defineCommand(String[] tokens) {
 		if (tokens.length == 1) {
-			log("stones_to_game [" + gameState.getPiedras_juego() + "]");
-			log("games_to_cow: " + gameState.getJuegos_vaca());
-			log("cows_to_match: " + gameState.getVacas_partida());			
+			log("stones_to_game [" + tableState.getPiedras_por_juego() + "]");
+			log("games_to_cow: " + tableState.getJuegos_por_vaca());
+			log("cows_to_match: " + tableState.getVacas_por_partida());			
 		}
 		if (tokens[1].toLowerCase().equals("port")) {
 			if (running) {
@@ -446,9 +455,16 @@ public class SrvMus extends Thread {
 			}
 			String[] serverGameState = {"WAITING_ALL_PLAYERS_TO_CONNECT","WAITING_ALL_PLAYERS_TO_SEAT","DEALING","PLAYING","END OF ROUND", "GAME FINISHED"};
 			log("state:" + serverGameState[gameState.getServerGameState()]);
-			log("Piedras por juego:"+gameState.getPiedras_juego());
-			log("Juegos por vaca" + gameState.getJuegos_vaca());
-			log("Vacas para partida:" + gameState.getVacas_partida());
+			log("Piedras por juego:"+tableState.getPiedras_por_juego());
+			log("Juegos por vaca" + tableState.getJuegos_por_vaca());
+			log("Vacas para partida:" + tableState.getVacas_por_partida());
+			for (int i = 0; i < MAX_CLIENTS; i++) {
+				if (gameState.isReadyForNextRound((byte) i)) {
+					log("Player with seat_id " + i + " ready for next round.");
+				} else {
+					log("Player with seat_id " + i + " NOT ready for next round.");					
+				}
+			}
 		} else 	if (tokens[1].toLowerCase().contentEquals("client")) {
 			// show state for that client
 			try {

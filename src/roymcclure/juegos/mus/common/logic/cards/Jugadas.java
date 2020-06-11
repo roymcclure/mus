@@ -2,7 +2,6 @@ package roymcclure.juegos.mus.common.logic.cards;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 
 import roymcclure.juegos.mus.common.logic.PlayerState;
 

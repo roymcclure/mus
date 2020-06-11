@@ -8,7 +8,6 @@ import roymcclure.juegos.mus.common.logic.cards.Baraja;
 import roymcclure.juegos.mus.common.logic.cards.Carta;
 import roymcclure.juegos.mus.common.logic.cards.Jugadas;
 
-import static roymcclure.juegos.mus.cliente.logic.ClientGameState.table;
 import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.*;
 import static roymcclure.juegos.mus.common.logic.Language.GamePhase.*;
 /*
@@ -38,6 +37,9 @@ public class TableState implements Serializable  {
 	private byte 	piedras_norte_sur = 0, piedras_oeste_este = 0, 
 			juegos_norte_sur = 0, juegos_oeste_este = 0,
 			vacas_norte_sur = 0, vacas_oeste_este = 0,
+			piedras_por_juego = 30,
+			juegos_por_vaca = 3,
+			vacas_por_partida = 2,
 			jugador_debe_hablar = -1, // index of the SEAT_ID not THREAD_ID
 			piedras_envidadas_ronda_actual = 0,
 			piedras_envidadas_a_grande = 0, // these will store a value != 0 ONLY when a bet was accepted
@@ -84,6 +86,7 @@ public class TableState implements Serializable  {
 	public TableState(PlayerState[] clients, byte piedras_norte_sur, byte piedras_oeste_este, byte juegos_norte_sur,
 			byte juegos_oeste_este, byte vacas_norte_sur, byte vacas_oeste_este, byte jugador_debe_hablar,
 			byte piedras_envidadas_ronda_actual, byte id_ronda, byte tipo_lance, Baraja baraja,
+			byte piedras_por_juego, byte juegos_por_vaca, byte vacas_por_partida, 			
 			byte piedras_envidadas_a_grande, byte piedras_envidadas_a_chica, byte piedras_envidadas_a_pares, byte piedras_envidadas_a_juego,
 			byte jugadores_hablado_en_turno_actual, byte ultimo_envidador, byte piedras_acumuladas_en_apuesta, boolean ordago_lanzado,
 			byte mano_id, byte piedras_en_ultimo_envite, boolean[] pares, boolean[] juego, boolean[] enPaso, byte previous_lance) {
@@ -107,6 +110,9 @@ public class TableState implements Serializable  {
 		this.juegos_oeste_este = juegos_oeste_este;
 		this.vacas_norte_sur = vacas_norte_sur;
 		this.vacas_oeste_este = vacas_oeste_este;
+		this.piedras_por_juego = piedras_por_juego;
+		this.juegos_por_vaca = juegos_por_vaca;
+		this.vacas_por_partida = vacas_por_partida;
 		this.jugador_debe_hablar = jugador_debe_hablar;
 		this.piedras_envidadas_ronda_actual = piedras_envidadas_ronda_actual;
 		this.id_ronda = id_ronda;
@@ -142,6 +148,9 @@ public class TableState implements Serializable  {
 		for (int i = 0; i <= JUEGO; i++) {
 			this.enPaso[i] = tableState.enPaso[i];
 		}
+		this.piedras_por_juego = tableState.piedras_por_juego;
+		this.juegos_por_vaca = tableState.juegos_por_vaca;
+		this.vacas_por_partida = tableState.vacas_por_partida;
 		this.piedras_norte_sur = tableState.piedras_norte_sur;
 		this.piedras_oeste_este = tableState.piedras_oeste_este;
 		this.juegos_norte_sur = tableState.juegos_norte_sur;
@@ -172,7 +181,9 @@ public class TableState implements Serializable  {
 		TableState tableCopy =new TableState(clients, piedras_norte_sur, piedras_oeste_este, 
 				juegos_norte_sur, juegos_oeste_este,
 				vacas_norte_sur, vacas_oeste_este,jugador_debe_hablar, piedras_envidadas_ronda_actual,
-				id_ronda,tipo_lance, baraja, piedras_envidadas_a_grande, piedras_envidadas_a_chica, 
+				id_ronda,tipo_lance, baraja, 
+				piedras_por_juego, juegos_por_vaca, vacas_por_partida, 
+				piedras_envidadas_a_grande, piedras_envidadas_a_chica, 
 				piedras_envidadas_a_pares, piedras_envidadas_a_juego, jugadores_hablado_en_turno_actual, ultimo_envidador,
 				piedras_acumuladas_en_apuesta, ordago_lanzado, mano_id, piedras_en_ultimo_envite, pares, 
 				juego, enPaso, previous_lance);
@@ -483,14 +494,12 @@ public class TableState implements Serializable  {
 		}
 	}
 
-	// called AFTER we went into end of round
+	// called AFTER we set state to end of round
 	private void onEndOfRoundReached() {
 		if (isOrdago_lanzado()) {
 			byte winner=getGanador(previous_lance);
 			System.out.println("ganador de ese ordago es " + winner);
 			addJuegoToTeamOf(winner);
-			piedras_norte_sur = 0;
-			piedras_oeste_este = 0;
 		} else {
 			// hacer los cambios de estado que se visualizan en showSpeechBubblesForEndOfRound
 			for (byte i = GRANDE; i <= JUEGO; i++) {
@@ -498,7 +507,7 @@ public class TableState implements Serializable  {
 				// si la ronda era jugable					
 				// 	si quedó en paso, se le da al ganador
 				System.out.println("=====================================");
-				if (rondaWasPlayable(i)) {
+				if (roundWasPlayable(i)) {
 					System.out.println("ronda " + Language.StringLiterals.LANCES[i] + " was playable");
 					// grande y chica siempre entran aqui
 					byte winner_seat_id = this.getGanador(i);
@@ -507,7 +516,9 @@ public class TableState implements Serializable  {
 						// la ronda era jugable, pero quedó en paso
 						// una piedra porque quedó en paso
 						System.out.println("Lance quedo en paso");
-						addPiedrasToTeamOf(winner_seat_id, (byte) 1);
+						if (i==GRANDE || i == CHICA) {
+							addPiedrasToTeamOf(winner_seat_id, (byte) 1);
+						}
 					} else {
 						System.out.println("Lance no estaba en paso, añadiendo " + piedrasApostadasEnRonda(i) + " a equipo de " + clients[winner_seat_id].getName());							
 						addPiedrasToTeamOf(winner_seat_id, piedrasApostadasEnRonda(i));
@@ -542,20 +553,60 @@ public class TableState implements Serializable  {
 						break;
 					}
 				}
+				if (piedras_norte_sur >= piedras_por_juego || piedras_oeste_este >= piedras_por_juego) {
+					break;
+				}
 
 			}
-			if ( piedras_norte_sur >= GameState.base_piedras_juego) {
-				addJuegoToTeamOf((byte) 0);
-			} else if(piedras_oeste_este >= GameState.base_piedras_juego) {
-				addJuegoToTeamOf((byte) 1);				
+			// aqui se incrementan juegos y vacas si procediese
+			// pero no se resetean, porque esos valores los utiliza
+			// el client controller para mostrar los speech bubbles con
+			// lo que pasó en la ronda.
+			// se resetean en sig_ronda.
+			
+			
+		}
+		if (piedras_norte_sur >= piedras_por_juego) {
+			juegos_norte_sur++;
+			if (juegos_norte_sur == juegos_por_vaca) {
+				vacas_norte_sur++;
 			}
+		} else if (piedras_oeste_este >= piedras_por_juego) {
+			juegos_oeste_este++;
+			if (juegos_oeste_este == juegos_por_vaca) {
+				vacas_oeste_este++;
+			}				
 		}
 		id_ronda++;
 	}
 
 
 
-	public boolean rondaWasPlayable(byte tipo_lance) {
+	public byte getPiedras_por_juego() {
+		return piedras_por_juego;
+	}
+
+	public void setPiedras_por_juego(byte piedras_por_juego) {
+		this.piedras_por_juego = piedras_por_juego;
+	}
+
+	public byte getJuegos_por_vaca() {
+		return juegos_por_vaca;
+	}
+
+	public void setJuegos_por_vaca(byte juegos_por_vaca) {
+		this.juegos_por_vaca = juegos_por_vaca;
+	}
+
+	public byte getVacas_por_partida() {
+		return vacas_por_partida;
+	}
+
+	public void setVacas_por_partida(byte vacas_por_partida) {
+		this.vacas_por_partida = vacas_por_partida;
+	}
+
+	public boolean roundWasPlayable(byte tipo_lance) {
 		switch(tipo_lance) {
 		case GRANDE:
 		case CHICA:
@@ -742,7 +793,7 @@ public class TableState implements Serializable  {
 			break;
 		}
 	}
-	
+
 	// pasa al siguiente lance y determina quién debe hablar
 	// todo: pretty cluttered, refactor
 	public void pasarASiguienteLance() {
@@ -901,13 +952,38 @@ public class TableState implements Serializable  {
 		return -1;
 	}
 
+	// we use this only in ordago. it isnt really neccesary but whatever.
 	public void addJuegoToTeamOf(byte winner) {
 
 		if (winner % 2 == 0) {
-			juegos_norte_sur++;
+			piedras_norte_sur=piedras_por_juego;			
 		} else {
-			juegos_oeste_este++;
+			piedras_oeste_este=piedras_por_juego;		
 		}
+	}
+
+	public void setPiedras_norte_sur(byte piedras_norte_sur) {
+		this.piedras_norte_sur = piedras_norte_sur;
+	}
+
+	public void setPiedras_oeste_este(byte piedras_oeste_este) {
+		this.piedras_oeste_este = piedras_oeste_este;
+	}
+
+	public void setJuegos_norte_sur(byte juegos_norte_sur) {
+		this.juegos_norte_sur = juegos_norte_sur;
+	}
+
+	public void setJuegos_oeste_este(byte juegos_oeste_este) {
+		this.juegos_oeste_este = juegos_oeste_este;
+	}
+
+	public void setVacas_norte_sur(byte vacas_norte_sur) {
+		this.vacas_norte_sur = vacas_norte_sur;
+	}
+
+	public void setVacas_oeste_este(byte vacas_oeste_este) {
+		this.vacas_oeste_este = vacas_oeste_este;
 	}
 
 	public void addPiedrasToTeamOf(byte winner, byte piedras) {
@@ -1052,6 +1128,44 @@ public class TableState implements Serializable  {
 	public Baraja getBarajaDescartes() {
 		return barajaDescartes;
 
+	}
+
+	public void postRoundCheck() {
+		if (getPiedras_norte_sur() >= getPiedras_por_juego() || piedras_oeste_este >= piedras_por_juego) {
+			piedras_norte_sur = piedras_oeste_este = 0;			
+		}
+		if (juegos_norte_sur == juegos_por_vaca || juegos_oeste_este == juegos_por_vaca) {
+			juegos_norte_sur = juegos_oeste_este = 0;
+		}
+		if (vacas_norte_sur == vacas_por_partida || vacas_oeste_este == vacas_por_partida) {
+			vacas_norte_sur = vacas_oeste_este = 0;
+		}
+		for (int i = 0; i < MAX_CLIENTS; i++) {
+			enPaso[i] = true;
+		}
+		
+	}
+
+	public void resetForNewround() {
+		byte zero = 0;
+		pasarASiguienteLance();
+		// jugadores hablado no hace falta, se hace en pasarAsiguienteLance
+
+		// devolver todas las cartas a la baraja y barajar
+		getBaraja().vaciar();
+		getBarajaDescartes().vaciar();
+		getBaraja().rellenar();
+		getBaraja().barajar();
+		// poner piedras envidadas en cada ronda a 0
+		
+		setMano_seat_id(nextTableSeatId(getMano_seat_id()));
+		setJugador_debe_hablar(getMano_seat_id());
+		setPiedras_acumuladas_en_apuesta(zero);
+		for (byte i = GRANDE; i<=JUEGO;i++)
+			setPiedras_envidadas(i, zero);
+		// repartir
+		repartir();
+		
 	}
 
 

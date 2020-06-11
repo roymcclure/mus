@@ -12,14 +12,14 @@ public class Language {
 				MUS = 4,
 				CORTO_MUS = 5,
 				DESCARTAR = 6, // must be accompanied by four booleans to indicate which cards to discard
-				HANDSHAKE = 9,
+				ALIVE = 9,
 				REQUEST_GAME_STATE = 10,
 				REQUEST_SEAT = 11,
 				LEAVE_SEAT = 12,
 				HABLO_PARES = 13,
 				HABLO_JUEGO = 14,
 				NO_SE_JUEGA_RONDA = 15,
-				SIG_RONDA = 16,
+				SIG_RONDA = 16, // when current round has finished, tell server i am ready for next round
 				CLOSE_CONNECTION = 20,
 				ERROR_MUS = 21;
 
@@ -49,7 +49,8 @@ public class Language {
 	public class ConnectionState {
 		public static final byte READ = 0,
 				WRITE = 1,
-				WRITE_READ = 2;
+				WRITE_READ = 2,
+				ALIVE = 50;
 	}
 
 	public class NodeState {
@@ -101,7 +102,8 @@ public class Language {
 				BUTTON_ORDAGO = 2,
 				BUTTON_PASO = 3,
 				BUTTON_ACEPTAR = 4,
-				BUTTON_SIG_RONDA = 0;									
+				BUTTON_SIG_RONDA = 0,
+				BUTTON_REPETIR_CONTEO = 1;									
 	}
 
 	public class MouseInputType {

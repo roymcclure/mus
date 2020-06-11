@@ -138,6 +138,7 @@ public class ConnectionThread implements Runnable   {
 			System.out.println("[CONNECTION THREAD] MESSAGE RECEIVED. POSTING TO CLIENT CONTROLLER JOBS....");			
 			//sm.printContent();
 			synchronized(_controllerJobs) {
+				
 				_controllerJobs.postRequestJob(new MessageJob(sm));
 				identify();
 				System.out.print("[CONNECTION THREAD] message posted. notifying for the client controller...");
@@ -189,6 +190,7 @@ public class ConnectionThread implements Runnable   {
 	}
 	
 	public void send(Object message) throws IOException {
+		// TODO: transform message into a bit word, write those bytes to the server
 		objOut.writeObject(message);
 	}
 	

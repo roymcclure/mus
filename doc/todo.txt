@@ -1,4 +1,4 @@
-FINIShED
+FINISHED
 ========
 - correct display of names 
 - correct display of hand
@@ -11,19 +11,25 @@ FINIShED
 - solo puede jugar quien tenga pares o juego en esas rondas
 - dibujar piedras en la mesa
 - general UI adjustments, cards west-east should read properly
+- resolution of round (point assignment, game assignment, cow assignment, winner assignment)
+- handle ORDAGOS
+- handle client connection close gracefully
+- jugar al punto
+- do not accept more than one [NO_SE_JUEGA_RONDA] from the same client. (otherwise a player could make the server skip the lance altogether
+by forging NO_SE_JUEGA_RONDA packets.)
 
 TO FINISH
 =========
 
-- resolution of round (point assignment, game assignment, cow assignment, winner assignment)
-- handle ORDAGOS *
-- set timeout on sockets to ensure connection consistency
-- handle client connection close gracefully
-- do not accept more than one [NO_SE_JUEGA_RONDA] from the same client. (otherwise a player could make the server skip the lance altogether.)
-- jugar al punto!
+- junto al boton de envidar, se ponen dos triangulos para subir o bajar la apuesta, y nos libramos de los dos botones
+- cuando piedras envidadas es igual o mayor a piedras_por_juego, en cliente ya no se muestra boton de envidar mas, 
+solo aceptar, pasar u ordago.
+- set timeout on sockets to ensure connection consistency??
 - implementar patrón observer
 - animación repartir cartas
- 
+- implementar limite de tiempo por jugador.
+ - grande en paso y chica en paso
+ - cuando los pares se quedan el paso, no habla quien debería (la mano)
 
 
 BUGS

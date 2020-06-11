@@ -4,8 +4,6 @@ import java.io.Serializable;
 
 import roymcclure.juegos.mus.common.logic.GameState;
 import roymcclure.juegos.mus.common.logic.TableState;
-import static roymcclure.juegos.mus.common.logic.Language.GameDefinitions.*;
-import static roymcclure.juegos.mus.common.logic.Language.ServerGameState.*;
 
 /*
  * Containts connection-related data, and possibly
@@ -22,7 +20,7 @@ public class ServerMessage implements Serializable {
 
 	private TableState tableState;
 	private GameState gameState;
-	private boolean broadCast; // it is a broadcast msg
+	private boolean broadCast = false; // it is a broadcast msg
 	// TODO: only for broadcast purposes. NOT ELEGANT. the right way? create a BroadCastMessage class.
 	@SuppressWarnings("unused")
 	private ClientMessage clientMessage; 
@@ -90,7 +88,9 @@ public class ServerMessage implements Serializable {
 		return sm;
 	}
 
-	// TODO: what? this is weird... 
+	// TODO: for starters i pass the original sender in info[]
+	// so if info field neeeded to be broadcasted as well we have a problem.
+	// and secondly, 
 	private void setClientMessage(ClientMessage cm, String playerID) {
 		this.clientMessage = new ClientMessage(cm.getAction(), cm.getQuantity(),playerID);
 		

@@ -62,8 +62,8 @@ public class ClientMessage implements Serializable {
 		case Language.PlayerActions.ENVITE:
 			content += "ACTION: ENVITE\n";
 			break;
-		case Language.PlayerActions.HANDSHAKE:
-			content += "ACTION: HANDSHAKE\n";
+		case Language.ConnectionState.ALIVE:
+			content += "ACTION: KEEP-ALIVE\n";
 			break;
 		case Language.PlayerActions.ORDAGO:
 			content += "ACTION: ORDAGO\n";
